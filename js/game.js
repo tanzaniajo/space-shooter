@@ -76,6 +76,16 @@
     return codes.some((c) => keys.has(c));
   }
 
+  let mouseDown = false;
+  window.addEventListener('mousedown', (e) => {
+    if (e.button === 0) mouseDown = true;
+  });
+  window.addEventListener('mouseup', (e) => {
+    if (e.button === 0) mouseDown = false;
+  });
+  window.addEventListener('mouseleave', () => { mouseDown = false; });
+  window.addEventListener('blur', () => { mouseDown = false; keys.clear(); });
+
   // ---------- Utility ----------
   function rand(min, max) {
     return Math.random() * (max - min) + min;
@@ -133,10 +143,11 @@
   let wave = 1;
   let waveTimer = 0;
   let waveMessageTimer = 0;
+  let waveMessage = '';
   let spawnQueue = [];
   let spawnTimer = 0;
 
-  let player, bullets, enemyBullets, enemies, particles, powerups;
+  let player, bullets, enemyBullets, enemies, particles, powerups, boss;
 
   function getHighScore() {
     return Number(localStorage.getItem(HIGH_SCORE_KEY) || 0);
@@ -180,7 +191,7 @@
 
       this.cooldown -= dt;
       const rate = this.rapid > 0 ? this.fireRate * 0.4 : this.fireRate;
-      if (isDown('Space') && this.cooldown <= 0) {
+      if ((isDown('Space') || mouseDown) && this.cooldown <= 0) {
         this.shoot();
         this.cooldown = rate;
       }
@@ -435,6 +446,120 @@
     }
   }
 
+  class Boss {
+    constructor(tier) {
+      this.tier = tier;
+      this.r = 46 + Math.min(tier, 5) * 4;
+      this.maxHp = 70 + tier * 45;
+      this.hp = this.maxHp;
+      this.x = width / 2;
+      this.y = -this.r * 2;
+      this.targetY = 130;
+      this.phase = 'entering';
+      this.enterSpeed = 140;
+      this.t = 0;
+      this.shootTimer = 1.2;
+      this.barrageTimer = 3.5;
+      this.hitFlash = 0;
+      this.dead = false;
+      this.color = '#ff2f6e';
+      this.scoreValue = 300 + tier * 100;
+    }
+    update(dt) {
+      this.t += dt;
+      if (this.hitFlash > 0) this.hitFlash -= dt;
+
+      if (this.phase === 'entering') {
+        this.y += this.enterSpeed * dt;
+        if (this.y >= this.targetY) {
+          this.y = this.targetY;
+          this.phase = 'fighting';
+          this.t = 0;
+        }
+        return;
+      }
+
+      this.x = width / 2 + Math.sin(this.t * 0.7) * (width * 0.28);
+      const enraged = this.hp < this.maxHp * 0.35;
+
+      this.shootTimer -= dt;
+      if (this.shootTimer <= 0) {
+        this.shootTimer = enraged ? 0.5 : 0.9;
+        sfx.enemyShoot();
+        const dx = player.x - this.x;
+        const dy = player.y - this.y;
+        const baseAngle = Math.atan2(dx, -dy);
+        for (const off of [-0.35, -0.15, 0, 0.15, 0.35]) {
+          enemyBullets.push(new Bullet(this.x, this.y + this.r * 0.6, baseAngle + off, false, 240));
+        }
+      }
+
+      this.barrageTimer -= dt;
+      if (this.barrageTimer <= 0) {
+        this.barrageTimer = enraged ? 2.2 : 3.4;
+        sfx.enemyShoot();
+        const count = 9;
+        for (let i = 0; i < count; i++) {
+          const angle = (i / (count - 1) - 0.5) * Math.PI * 0.9;
+          enemyBullets.push(new Bullet(this.x, this.y + this.r * 0.6, angle, false, 220));
+        }
+      }
+    }
+    hit(dmg) {
+      if (this.dead) return;
+      this.hp -= dmg;
+      this.hitFlash = 0.08;
+      if (this.hp <= 0) {
+        this.hp = 0;
+        this.dead = true;
+        score += this.scoreValue;
+        sfx.explosion();
+        for (let i = 0; i < 5; i++) {
+          spawnExplosion(this.x + rand(-30, 30), this.y + rand(-20, 20), this.color);
+        }
+        powerups.push(new PowerUp(this.x - 30, this.y, POWERUP_TYPES[Math.floor(rand(0, POWERUP_TYPES.length))]));
+        powerups.push(new PowerUp(this.x + 30, this.y, POWERUP_TYPES[Math.floor(rand(0, POWERUP_TYPES.length))]));
+      } else {
+        sfx.hit();
+      }
+    }
+    draw() {
+      ctx.save();
+      ctx.translate(this.x, this.y);
+      ctx.fillStyle = this.hitFlash > 0 ? '#ffffff' : this.color;
+      ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, this.r);
+      ctx.lineTo(this.r, -this.r * 0.3);
+      ctx.lineTo(this.r * 0.55, -this.r * 0.9);
+      ctx.lineTo(0, -this.r * 0.4);
+      ctx.lineTo(-this.r * 0.55, -this.r * 0.9);
+      ctx.lineTo(-this.r, -this.r * 0.3);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+
+      const barW = 340;
+      const barX = width / 2 - barW / 2;
+      const barY = 46;
+      ctx.save();
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fillRect(barX, barY, barW, 14);
+      ctx.fillStyle = '#ff2f6e';
+      ctx.fillRect(barX, barY, barW * (this.hp / this.maxHp), 14);
+      ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(barX, barY, barW, 14);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 12px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('BOSS', width / 2, barY - 5);
+      ctx.restore();
+    }
+  }
+
   function spawnExplosion(x, y, color) {
     for (let i = 0; i < 18; i++) particles.push(new Particle(x, y, color));
   }
@@ -490,9 +615,18 @@
 
   function startWave(n) {
     wave = n;
-    spawnQueue = buildWave(n);
-    spawnTimer = 0;
-    waveMessageTimer = 1.6;
+    if (n % 10 === 0) {
+      spawnQueue = [];
+      spawnTimer = 0;
+      boss = new Boss(Math.floor(n / 10));
+      waveMessage = 'WARNING: BOSS INCOMING';
+      waveMessageTimer = 2.2;
+    } else {
+      spawnQueue = buildWave(n);
+      spawnTimer = 0;
+      waveMessage = `WAVE ${n}`;
+      waveMessageTimer = 1.6;
+    }
     sfx.wave();
   }
 
@@ -507,6 +641,7 @@
     enemies = [];
     particles = [];
     powerups = [];
+    boss = null;
     initStars();
     startWave(1);
   }
@@ -560,8 +695,8 @@
     }
     if (waveMessageTimer > 0) waveMessageTimer -= dt;
 
-    // advance to next wave once cleared
-    if (spawnQueue.length === 0 && enemies.length === 0) {
+    // advance to next wave once cleared (grunt wave empty, or boss defeated)
+    if (spawnQueue.length === 0 && enemies.length === 0 && !boss) {
       startWave(wave + 1);
     }
 
@@ -570,6 +705,7 @@
     for (const e of enemies) e.update(dt);
     for (const p of particles) p.update(dt);
     for (const pu of powerups) pu.update(dt);
+    if (boss) boss.update(dt);
 
     // player bullets vs enemies
     for (const b of bullets) {
@@ -580,6 +716,17 @@
           b.dead = true;
           e.hit(1);
           break;
+        }
+      }
+    }
+
+    // player bullets vs boss
+    if (boss && !boss.dead) {
+      for (const b of bullets) {
+        if (b.dead) continue;
+        if (circleHit(b, boss)) {
+          b.dead = true;
+          boss.hit(1);
         }
       }
     }
@@ -604,6 +751,11 @@
       }
     }
 
+    // boss vs player (contact damage)
+    if (boss && !boss.dead && boss.phase === 'fighting' && circleHit(boss, player)) {
+      player.hit();
+    }
+
     // powerups vs player
     for (const pu of powerups) {
       if (pu.dead) continue;
@@ -618,13 +770,14 @@
     enemies = enemies.filter((e) => !e.dead);
     particles = particles.filter((p) => p.life > 0);
     powerups = powerups.filter((p) => !p.dead);
+    if (boss && boss.dead) boss = null;
 
     if (lives <= 0) {
       gameOver();
     }
 
     hudScore.textContent = `SCORE: ${score}`;
-    hudLevel.textContent = `WAVE ${wave}`;
+    hudLevel.textContent = boss ? `BOSS WAVE ${wave}` : `WAVE ${wave}`;
     hudLives.textContent = `LIVES: ${'❤'.repeat(clamp(lives, 0, 9))}`;
   }
 
@@ -639,18 +792,19 @@
     for (const b of bullets) b.draw();
     for (const b of enemyBullets) b.draw();
     for (const e of enemies) e.draw();
+    if (boss) boss.draw();
     for (const p of particles) p.draw();
     if (state !== 'gameover') player.draw();
 
     if (waveMessageTimer > 0 && state === 'playing') {
       ctx.save();
       ctx.globalAlpha = clamp(waveMessageTimer, 0, 1);
-      ctx.fillStyle = '#7fffd4';
+      ctx.fillStyle = boss ? '#ff5577' : '#7fffd4';
       ctx.textAlign = 'center';
       ctx.font = 'bold 34px monospace';
-      ctx.shadowColor = '#7fffd4';
+      ctx.shadowColor = ctx.fillStyle;
       ctx.shadowBlur = 16;
-      ctx.fillText(`WAVE ${wave}`, width / 2, height / 2);
+      ctx.fillText(waveMessage, width / 2, height / 2);
       ctx.restore();
     }
   }
