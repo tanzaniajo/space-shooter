@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Star Runner — Space Shooter</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="game-canvas"></canvas>
+
+    <div id="hud">
+      <div id="hud-score">SCORE: 0</div>
+      <div id="hud-level">WAVE 1</div>
+      <div id="hud-lives">LIVES: ❤❤❤</div>
+    </div>
+
+    <div id="start-screen" class="overlay">
+      <h1>STAR RUNNER</h1>
+      <p class="subtitle">A tiny space shooter</p>
+      <div class="instructions">
+        <p><strong>Move:</strong> Arrow Keys / WASD</p>
+        <p><strong>Shoot:</strong> Space</p>
+        <p><strong>Pause:</strong> P</p>
+      </div>
+      <p id="high-score-display">High Score: 0</p>
+      <button id="start-button">START GAME</button>
+    </div>
+
+    <div id="pause-screen" class="overlay hidden">
+      <h1>PAUSED</h1>
+      <button id="resume-button">RESUME</button>
+    </div>
+
+    <div id="game-over-screen" class="overlay hidden">
+      <h1>GAME OVER</h1>
+      <p id="final-score">SCORE: 0</p>
+      <p id="new-high-score" class="hidden">NEW HIGH SCORE!</p>
+      <button id="restart-button">PLAY AGAIN</button>
+    </div>
+  </div>
+
+  <script src="js/game.js"></script>
+</body>
+</html>
