@@ -82,6 +82,12 @@ html, body {
   animation: pulse 0.3s infinite;
 }
 
+#hud-gadget.disabled {
+  color: #556;
+  border-color: rgba(120, 130, 160, 0.3);
+  text-shadow: none;
+}
+
 .overlay {
   position: absolute;
   inset: 0;
@@ -162,3 +168,31 @@ button:hover {
 button:active {
   transform: scale(0.97);
 }
+
+#difficulty-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 660px;
+}
+
+.diff-btn {
+  font-size: 13px;
+  padding: 10px 14px;
+}
+
+.diff-baby { color: #6cff8c; border-color: #6cff8c; }
+.diff-baby:hover { background: #6cff8c; color: #05050f; box-shadow: 0 0 18px rgba(108, 255, 140, 0.8); }
+
+.diff-noob { color: #7fffd4; border-color: #7fffd4; }
+.diff-noob:hover { background: #7fffd4; color: #05050f; box-shadow: 0 0 18px rgba(127, 255, 212, 0.8); }
+
+.diff-normal { color: #ffd166; border-color: #ffd166; }
+.diff-normal:hover { background: #ffd166; color: #05050f; box-shadow: 0 0 18px rgba(255, 209, 102, 0.8); }
+
+.diff-hard { color: #ffb454; border-color: #ffb454; }
+.diff-hard:hover { background: #ffb454; color: #05050f; box-shadow: 0 0 18px rgba(255, 180, 84, 0.8); }
+
+.diff-impossible { color: #ff5577; border-color: #ff5577; }
+.diff-impossible:hover { background: #ff5577; color: #05050f; box-shadow: 0 0 18px rgba(255, 85, 119, 0.8); }

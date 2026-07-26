@@ -24,11 +24,18 @@
       <div class="instructions">
         <p><strong>Move:</strong> Arrow Keys / WASD</p>
         <p><strong>Shoot:</strong> Space or Click</p>
-        <p><strong>Gadget:</strong> E (rapid-fire burst, 50s cooldown)</p>
+        <p><strong>Gadget:</strong> E (rapid-fire burst)</p>
         <p><strong>Pause:</strong> P</p>
       </div>
       <p id="high-score-display">High Score: 0</p>
-      <button id="start-button">START GAME</button>
+      <p class="subtitle">Select Difficulty</p>
+      <div id="difficulty-row">
+        <button class="diff-btn diff-baby" data-diff="baby" title="No gadget cooldown. Enemies never shoot.">FOR BABIES</button>
+        <button class="diff-btn diff-noob" data-diff="noob" title="30s gadget cooldown. Enemies never shoot.">FOR NOOBS</button>
+        <button class="diff-btn diff-normal" data-diff="normal" title="Standard rules. 50s gadget cooldown.">NORMAL</button>
+        <button class="diff-btn diff-hard" data-diff="hard" title="90s gadget cooldown.">HARD</button>
+        <button class="diff-btn diff-impossible" data-diff="impossible" title="No gadget. Boss can teleport.">IMPOSSIBLE</button>
+      </div>
     </div>
 
     <div id="pause-screen" class="overlay hidden">

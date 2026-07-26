@@ -13,7 +13,7 @@
   const startScreen = document.getElementById('start-screen');
   const pauseScreen = document.getElementById('pause-screen');
   const gameOverScreen = document.getElementById('game-over-screen');
-  const startButton = document.getElementById('start-button');
+  const diffButtons = document.querySelectorAll('.diff-btn');
   const resumeButton = document.getElementById('resume-button');
   const restartButton = document.getElementById('restart-button');
   const finalScoreEl = document.getElementById('final-score');
@@ -138,6 +138,16 @@
     ctx.globalAlpha = 1;
   }
 
+  // ---------- Difficulty ----------
+  const DIFFICULTIES = {
+    baby: { label: 'FOR BABIES', gadgetCooldown: 0, enemiesAttack: false, gadgetEnabled: true, bossTeleport: false },
+    noob: { label: 'FOR NOOBS', gadgetCooldown: 30, enemiesAttack: false, gadgetEnabled: true, bossTeleport: false },
+    normal: { label: 'NORMAL', gadgetCooldown: 50, enemiesAttack: true, gadgetEnabled: true, bossTeleport: false },
+    hard: { label: 'HARD', gadgetCooldown: 90, enemiesAttack: true, gadgetEnabled: true, bossTeleport: false },
+    impossible: { label: 'IMPOSSIBLE', gadgetCooldown: 50, enemiesAttack: true, gadgetEnabled: false, bossTeleport: true },
+  };
+  let difficulty = DIFFICULTIES.normal;
+
   // ---------- Game State ----------
   let state = 'start'; // start | playing | paused | gameover
   let score = 0;
@@ -162,7 +172,7 @@
 
   // ---------- Entities ----------
   class Player {
-    constructor() {
+    constructor(diff) {
       this.x = width / 2;
       this.y = height - 100;
       this.r = 14;
@@ -175,7 +185,8 @@
       this.invuln = 1.2; // brief spawn invulnerability
       this.blinkT = 0;
       this.gadgetCooldown = 0; // ready at start
-      this.gadgetMax = 50;
+      this.gadgetMax = diff.gadgetCooldown;
+      this.gadgetEnabled = diff.gadgetEnabled;
       this.gadgetActive = 0;
       this.gadgetDuration = 2.5;
       this.gadgetFireTimer = 0;
@@ -219,6 +230,7 @@
     }
 
     useGadget() {
+      if (!this.gadgetEnabled) return;
       if (this.gadgetCooldown > 0 || this.gadgetActive > 0) return;
       this.gadgetActive = this.gadgetDuration;
       this.gadgetCooldown = this.gadgetMax;
@@ -364,7 +376,7 @@
       this.y += this.speed * dt;
       this.x = this.baseX + Math.sin(this.t * 1.4) * 40;
 
-      if (this.shootChance > 0 && this.y > 0 && this.y < height - 60 && Math.random() < this.shootChance) {
+      if (difficulty.enemiesAttack && this.shootChance > 0 && this.y > 0 && this.y < height - 60 && Math.random() < this.shootChance) {
         sfx.enemyShoot();
         const dx = player.x - this.x;
         const dy = player.y - this.y;
@@ -480,11 +492,12 @@
   }
 
   class Boss {
-    constructor(tier) {
+    constructor(tier, diff) {
       this.tier = tier;
       this.r = 46 + Math.min(tier, 5) * 4;
       this.maxHp = 70 + tier * 45;
       this.hp = this.maxHp;
+      this.centerX = width / 2;
       this.x = width / 2;
       this.y = -this.r * 2;
       this.targetY = 130;
@@ -497,10 +510,23 @@
       this.dead = false;
       this.color = '#ff2f6e';
       this.scoreValue = 300 + tier * 100;
+      this.teleportEnabled = diff.bossTeleport;
+      this.teleportTimer = rand(3, 5);
+      this.teleportFlash = 0;
+    }
+    teleport() {
+      spawnExplosion(this.x, this.y, '#c86bff');
+      this.centerX = rand(width * 0.25, width * 0.75);
+      this.y = rand(90, 220);
+      this.t = 0;
+      spawnExplosion(this.centerX, this.y, '#c86bff');
+      this.teleportFlash = 0.25;
+      sfx.powerup();
     }
     update(dt) {
       this.t += dt;
       if (this.hitFlash > 0) this.hitFlash -= dt;
+      if (this.teleportFlash > 0) this.teleportFlash -= dt;
 
       if (this.phase === 'entering') {
         this.y += this.enterSpeed * dt;
@@ -512,29 +538,40 @@
         return;
       }
 
-      this.x = width / 2 + Math.sin(this.t * 0.7) * (width * 0.28);
+      const amplitude = width * 0.28;
+      this.x = clamp(this.centerX + Math.sin(this.t * 0.7) * amplitude, this.r + 10, width - this.r - 10);
       const enraged = this.hp < this.maxHp * 0.35;
 
-      this.shootTimer -= dt;
-      if (this.shootTimer <= 0) {
-        this.shootTimer = enraged ? 0.5 : 0.9;
-        sfx.enemyShoot();
-        const dx = player.x - this.x;
-        const dy = player.y - this.y;
-        const baseAngle = Math.atan2(dx, -dy);
-        for (const off of [-0.35, -0.15, 0, 0.15, 0.35]) {
-          enemyBullets.push(new Bullet(this.x, this.y + this.r * 0.6, baseAngle + off, false, 240));
+      if (this.teleportEnabled) {
+        this.teleportTimer -= dt;
+        if (this.teleportTimer <= 0) {
+          this.teleportTimer = enraged ? rand(2.5, 3.5) : rand(3.5, 5.5);
+          this.teleport();
         }
       }
 
-      this.barrageTimer -= dt;
-      if (this.barrageTimer <= 0) {
-        this.barrageTimer = enraged ? 2.2 : 3.4;
-        sfx.enemyShoot();
-        const count = 9;
-        for (let i = 0; i < count; i++) {
-          const angle = (i / (count - 1) - 0.5) * Math.PI * 0.9;
-          enemyBullets.push(new Bullet(this.x, this.y + this.r * 0.6, angle, false, 220));
+      if (difficulty.enemiesAttack) {
+        this.shootTimer -= dt;
+        if (this.shootTimer <= 0) {
+          this.shootTimer = enraged ? 0.5 : 0.9;
+          sfx.enemyShoot();
+          const dx = player.x - this.x;
+          const dy = player.y - this.y;
+          const baseAngle = Math.atan2(dx, -dy);
+          for (const off of [-0.35, -0.15, 0, 0.15, 0.35]) {
+            enemyBullets.push(new Bullet(this.x, this.y + this.r * 0.6, baseAngle + off, false, 240));
+          }
+        }
+
+        this.barrageTimer -= dt;
+        if (this.barrageTimer <= 0) {
+          this.barrageTimer = enraged ? 2.2 : 3.4;
+          sfx.enemyShoot();
+          const count = 9;
+          for (let i = 0; i < count; i++) {
+            const angle = (i / (count - 1) - 0.5) * Math.PI * 0.9;
+            enemyBullets.push(new Bullet(this.x, this.y + this.r * 0.6, angle, false, 220));
+          }
         }
       }
     }
@@ -559,7 +596,7 @@
     draw() {
       ctx.save();
       ctx.translate(this.x, this.y);
-      ctx.fillStyle = this.hitFlash > 0 ? '#ffffff' : this.color;
+      ctx.fillStyle = this.hitFlash > 0 ? '#ffffff' : this.teleportFlash > 0 ? '#c86bff' : this.color;
       ctx.strokeStyle = 'rgba(255,255,255,0.7)';
       ctx.lineWidth = 2;
       ctx.beginPath();
@@ -651,7 +688,7 @@
     if (n % 10 === 0) {
       spawnQueue = [];
       spawnTimer = 0;
-      boss = new Boss(Math.floor(n / 10));
+      boss = new Boss(Math.floor(n / 10), difficulty);
       waveMessage = 'WARNING: BOSS INCOMING';
       waveMessageTimer = 2.2;
     } else {
@@ -668,7 +705,7 @@
     score = 0;
     lives = 3;
     wave = 0;
-    player = new Player();
+    player = new Player(difficulty);
     bullets = [];
     enemyBullets = [];
     enemies = [];
@@ -700,10 +737,13 @@
     gameOverScreen.classList.remove('hidden');
   }
 
-  startButton.addEventListener('click', () => {
-    startScreen.classList.add('hidden');
-    resetGame();
-    state = 'playing';
+  diffButtons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      difficulty = DIFFICULTIES[btn.dataset.diff];
+      startScreen.classList.add('hidden');
+      resetGame();
+      state = 'playing';
+    });
   });
   resumeButton.addEventListener('click', togglePause);
   restartButton.addEventListener('click', () => {
@@ -813,14 +853,21 @@
     hudLevel.textContent = boss ? `BOSS WAVE ${wave}` : `WAVE ${wave}`;
     hudLives.textContent = `LIVES: ${'❤'.repeat(clamp(lives, 0, 9))}`;
 
-    hudGadget.classList.toggle('firing', player.gadgetActive > 0);
-    hudGadget.classList.toggle('ready', player.gadgetActive <= 0 && player.gadgetCooldown <= 0);
-    if (player.gadgetActive > 0) {
-      hudGadget.textContent = 'GADGET: FIRING!';
-    } else if (player.gadgetCooldown > 0) {
-      hudGadget.textContent = `GADGET: ${Math.ceil(player.gadgetCooldown)}s`;
+    if (!player.gadgetEnabled) {
+      hudGadget.classList.remove('firing', 'ready');
+      hudGadget.classList.add('disabled');
+      hudGadget.textContent = 'GADGET: DISABLED';
     } else {
-      hudGadget.textContent = 'GADGET: READY (E)';
+      hudGadget.classList.remove('disabled');
+      hudGadget.classList.toggle('firing', player.gadgetActive > 0);
+      hudGadget.classList.toggle('ready', player.gadgetActive <= 0 && player.gadgetCooldown <= 0);
+      if (player.gadgetActive > 0) {
+        hudGadget.textContent = 'GADGET: FIRING!';
+      } else if (player.gadgetCooldown > 0) {
+        hudGadget.textContent = `GADGET: ${Math.ceil(player.gadgetCooldown)}s`;
+      } else {
+        hudGadget.textContent = 'GADGET: READY (E)';
+      }
     }
   }
 
