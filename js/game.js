@@ -8,6 +8,7 @@
   const hudScore = document.getElementById('hud-score');
   const hudLevel = document.getElementById('hud-level');
   const hudLives = document.getElementById('hud-lives');
+  const hudGadget = document.getElementById('hud-gadget');
 
   const startScreen = document.getElementById('start-screen');
   const pauseScreen = document.getElementById('pause-screen');
@@ -69,6 +70,7 @@
       e.preventDefault();
     }
     if (e.code === 'KeyP') togglePause();
+    if (e.code === 'KeyE' && state === 'playing') player.useGadget();
   });
   window.addEventListener('keyup', (e) => keys.delete(e.code));
 
@@ -172,6 +174,11 @@
       this.rapid = 0; // rapid fire timer
       this.invuln = 1.2; // brief spawn invulnerability
       this.blinkT = 0;
+      this.gadgetCooldown = 0; // ready at start
+      this.gadgetMax = 50;
+      this.gadgetActive = 0;
+      this.gadgetDuration = 2.5;
+      this.gadgetFireTimer = 0;
     }
 
     update(dt) {
@@ -199,6 +206,32 @@
       if (this.rapid > 0) this.rapid -= dt;
       if (this.invuln > 0) this.invuln -= dt;
       this.blinkT += dt;
+
+      if (this.gadgetCooldown > 0) this.gadgetCooldown -= dt;
+      if (this.gadgetActive > 0) {
+        this.gadgetActive -= dt;
+        this.gadgetFireTimer -= dt;
+        if (this.gadgetFireTimer <= 0) {
+          this.gadgetFireTimer = 0.035;
+          this.gadgetBurst();
+        }
+      }
+    }
+
+    useGadget() {
+      if (this.gadgetCooldown > 0 || this.gadgetActive > 0) return;
+      this.gadgetActive = this.gadgetDuration;
+      this.gadgetCooldown = this.gadgetMax;
+      this.gadgetFireTimer = 0;
+      sfx.powerup();
+    }
+
+    gadgetBurst() {
+      sfx.shoot();
+      for (let i = 0; i < 3; i++) {
+        const jitter = rand(-0.18, 0.18);
+        bullets.push(new Bullet(this.x + rand(-6, 6), this.y - this.r, jitter, true, 900));
+      }
     }
 
     shoot() {
@@ -779,6 +812,16 @@
     hudScore.textContent = `SCORE: ${score}`;
     hudLevel.textContent = boss ? `BOSS WAVE ${wave}` : `WAVE ${wave}`;
     hudLives.textContent = `LIVES: ${'❤'.repeat(clamp(lives, 0, 9))}`;
+
+    hudGadget.classList.toggle('firing', player.gadgetActive > 0);
+    hudGadget.classList.toggle('ready', player.gadgetActive <= 0 && player.gadgetCooldown <= 0);
+    if (player.gadgetActive > 0) {
+      hudGadget.textContent = 'GADGET: FIRING!';
+    } else if (player.gadgetCooldown > 0) {
+      hudGadget.textContent = `GADGET: ${Math.ceil(player.gadgetCooldown)}s`;
+    } else {
+      hudGadget.textContent = 'GADGET: READY (E)';
+    }
   }
 
   // ---------- Draw ----------
