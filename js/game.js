@@ -592,9 +592,9 @@
   const BOSS_KINDS = [
     { key: 'serpent', name: 'CRIMSON SERPENT', color: '#ff2f6e', hpBonus: 0, rBonus: 0, henchman: null },
     { key: 'sentinel', name: 'AZURE SENTINEL', color: '#39c5ff', hpBonus: -10, rBonus: -4, henchman: null },
-    { key: 'swarmqueen', name: 'VIOLET SWARM QUEEN', color: '#c86bff', hpBonus: -20, rBonus: -6, henchman: { type: 'spawnling', interval: 2.4, count: 3 } },
+    { key: 'swarmqueen', name: 'VIOLET SWARM QUEEN', color: '#c86bff', hpBonus: -20, rBonus: -6, henchman: { type: 'spawnling', interval: 1.7, count: 4 } },
     { key: 'juggernaut', name: 'AMBER JUGGERNAUT', color: '#ff8c1a', hpBonus: 40, rBonus: 10, henchman: null },
-    { key: 'overmind', name: 'EMERALD OVERMIND', color: '#39ffa0', hpBonus: 20, rBonus: 4, henchman: { type: 'acolyte', interval: 3.4, count: 3 } },
+    { key: 'overmind', name: 'EMERALD OVERMIND', color: '#39ffa0', hpBonus: 20, rBonus: 4, henchman: { type: 'acolyte', interval: 2.5, count: 4 } },
   ];
 
   class Boss {
@@ -607,7 +607,7 @@
       this.name = kindDef.name;
       this.color = kindDef.color;
       this.r = 46 + Math.min(tier, 5) * 4 + kindDef.rBonus;
-      this.maxHp = Math.ceil((160 + tier * 90 + kindDef.hpBonus * 2) * this.mult);
+      this.maxHp = Math.ceil((380 + tier * 210 + kindDef.hpBonus * 3) * this.mult);
       this.hp = this.maxHp;
       this.centerX = width / 2;
       this.x = width / 2;
@@ -691,11 +691,11 @@
     }
     attackInterval(enraged) {
       const base = {
-        serpent: enraged ? 0.4 : 0.72,
-        sentinel: enraged ? 0.28 : 0.44,
-        swarmqueen: enraged ? 0.72 : 1.12,
-        juggernaut: enraged ? 0.64 : 0.96,
-        overmind: enraged ? 0.32 : 0.52,
+        serpent: enraged ? 0.3 : 0.54,
+        sentinel: enraged ? 0.2 : 0.32,
+        swarmqueen: enraged ? 0.54 : 0.84,
+        juggernaut: enraged ? 0.48 : 0.72,
+        overmind: enraged ? 0.24 : 0.39,
       }[this.kindKey];
       return base / this.speedMult;
     }
@@ -707,7 +707,7 @@
         case 'serpent': {
           const baseAngle = Math.atan2(dx, -dy);
           for (const off of [-0.35, -0.15, 0, 0.15, 0.35]) {
-            enemyBullets.push(new Bullet(this.x, this.y + this.r * 0.6, baseAngle + off, false, 280 * this.speedMult, this.color));
+            enemyBullets.push(new Bullet(this.x, this.y + this.r * 0.6, baseAngle + off, false, 330 * this.speedMult, this.color));
           }
           break;
         }
@@ -715,14 +715,14 @@
           const count = 6;
           for (let i = 0; i < count; i++) {
             const angle = this.spinAngle + (i / count) * Math.PI * 2;
-            enemyBullets.push(new Bullet(this.x, this.y, angle, false, 230 * this.speedMult, this.color));
+            enemyBullets.push(new Bullet(this.x, this.y, angle, false, 270 * this.speedMult, this.color));
           }
           this.spinAngle += 0.35;
           break;
         }
         case 'swarmqueen': {
           const angle = Math.atan2(dx, -dy);
-          enemyBullets.push(new Bullet(this.x, this.y + this.r * 0.6, angle, false, 175 * this.speedMult, this.color));
+          enemyBullets.push(new Bullet(this.x, this.y + this.r * 0.6, angle, false, 210 * this.speedMult, this.color));
           break;
         }
         case 'juggernaut': {
@@ -730,7 +730,7 @@
           const count = 7;
           for (let i = 0; i < count; i++) {
             const angle = baseAngle + (i / (count - 1) - 0.5) * Math.PI * 0.6;
-            const b = new Bullet(this.x, this.y + this.r * 0.6, angle, false, 175 * this.speedMult, this.color);
+            const b = new Bullet(this.x, this.y + this.r * 0.6, angle, false, 210 * this.speedMult, this.color);
             b.r = 6;
             enemyBullets.push(b);
           }
@@ -740,7 +740,7 @@
           const arms = 3;
           for (let i = 0; i < arms; i++) {
             const angle = this.spinAngle + (i / arms) * Math.PI * 2;
-            enemyBullets.push(new Bullet(this.x, this.y, angle, false, 255 * this.speedMult, this.color));
+            enemyBullets.push(new Bullet(this.x, this.y, angle, false, 300 * this.speedMult, this.color));
           }
           this.spinAngle += 0.5;
           break;
@@ -768,7 +768,7 @@
       if (this.regenDelay > 0) {
         this.regenDelay -= dt;
       } else if (this.hp < this.maxHp) {
-        this.hp = clamp(this.hp + this.maxHp * 0.02 * dt, 0, this.maxHp);
+        this.hp = clamp(this.hp + this.maxHp * 0.03 * dt, 0, this.maxHp);
       }
 
       if (this.teleportEnabled) {
