@@ -139,12 +139,14 @@
   }
 
   // ---------- Difficulty ----------
+  // enemiesAttack: grunt enemies fire bullets. bossAttack: boss fires bullets (always true).
+  // enemyMult scales grunt/boss hp, speed and bullet speed upward for Hard/Impossible.
   const DIFFICULTIES = {
-    baby: { label: 'FOR BABIES', gadgetCooldown: 0, enemiesAttack: false, gadgetEnabled: true, bossTeleport: false },
-    noob: { label: 'FOR NOOBS', gadgetCooldown: 30, enemiesAttack: false, gadgetEnabled: true, bossTeleport: false },
-    normal: { label: 'NORMAL', gadgetCooldown: 50, enemiesAttack: true, gadgetEnabled: true, bossTeleport: false },
-    hard: { label: 'HARD', gadgetCooldown: 90, enemiesAttack: true, gadgetEnabled: true, bossTeleport: false },
-    impossible: { label: 'IMPOSSIBLE', gadgetCooldown: 50, enemiesAttack: true, gadgetEnabled: false, bossTeleport: true },
+    peaceful: { label: 'PEACEFUL', gadgetCooldown: 0, enemiesAttack: false, bossAttack: true, gadgetEnabled: true, bossTeleport: false, enemyMult: 1 },
+    easy: { label: 'EASY', gadgetCooldown: 30, enemiesAttack: false, bossAttack: true, gadgetEnabled: true, bossTeleport: false, enemyMult: 1 },
+    normal: { label: 'NORMAL', gadgetCooldown: 50, enemiesAttack: true, bossAttack: true, gadgetEnabled: true, bossTeleport: false, enemyMult: 1 },
+    hard: { label: 'HARD', gadgetCooldown: 90, enemiesAttack: true, bossAttack: true, gadgetEnabled: true, bossTeleport: false, enemyMult: 1.3 },
+    impossible: { label: 'IMPOSSIBLE', gadgetCooldown: 50, enemiesAttack: true, bossAttack: true, gadgetEnabled: false, bossTeleport: true, enemyMult: 1.6 },
   };
   let difficulty = DIFFICULTIES.normal;
 
@@ -357,16 +359,18 @@
   class Enemy {
     constructor(type, x) {
       const def = ENEMY_TYPES[type];
+      const mult = difficulty.enemyMult;
       this.type = type;
       this.x = x;
       this.y = -40;
       this.r = def.r;
-      this.hp = def.hp;
-      this.maxHp = def.hp;
-      this.speed = def.speed;
+      this.hp = Math.ceil(def.hp * mult);
+      this.maxHp = this.hp;
+      this.speed = def.speed * mult;
       this.color = def.color;
       this.scoreValue = def.score;
-      this.shootChance = def.shootChance;
+      this.shootChance = def.shootChance * mult;
+      this.bulletSpeed = 260 * mult;
       this.t = rand(0, Math.PI * 2);
       this.baseX = x;
       this.dead = false;
@@ -381,7 +385,7 @@
         const dx = player.x - this.x;
         const dy = player.y - this.y;
         const angle = Math.atan2(dx, -dy);
-        enemyBullets.push(new Bullet(this.x, this.y + this.r, angle, false, 260));
+        enemyBullets.push(new Bullet(this.x, this.y + this.r, angle, false, this.bulletSpeed));
       }
 
       if (this.y > height + 50) this.dead = true;
@@ -494,8 +498,9 @@
   class Boss {
     constructor(tier, diff) {
       this.tier = tier;
+      this.mult = diff.enemyMult;
       this.r = 46 + Math.min(tier, 5) * 4;
-      this.maxHp = 70 + tier * 45;
+      this.maxHp = Math.ceil((70 + tier * 45) * this.mult);
       this.hp = this.maxHp;
       this.centerX = width / 2;
       this.x = width / 2;
@@ -550,27 +555,27 @@
         }
       }
 
-      if (difficulty.enemiesAttack) {
+      if (difficulty.bossAttack) {
         this.shootTimer -= dt;
         if (this.shootTimer <= 0) {
-          this.shootTimer = enraged ? 0.5 : 0.9;
+          this.shootTimer = (enraged ? 0.5 : 0.9) / this.mult;
           sfx.enemyShoot();
           const dx = player.x - this.x;
           const dy = player.y - this.y;
           const baseAngle = Math.atan2(dx, -dy);
           for (const off of [-0.35, -0.15, 0, 0.15, 0.35]) {
-            enemyBullets.push(new Bullet(this.x, this.y + this.r * 0.6, baseAngle + off, false, 240));
+            enemyBullets.push(new Bullet(this.x, this.y + this.r * 0.6, baseAngle + off, false, 240 * this.mult));
           }
         }
 
         this.barrageTimer -= dt;
         if (this.barrageTimer <= 0) {
-          this.barrageTimer = enraged ? 2.2 : 3.4;
+          this.barrageTimer = (enraged ? 2.2 : 3.4) / this.mult;
           sfx.enemyShoot();
           const count = 9;
           for (let i = 0; i < count; i++) {
             const angle = (i / (count - 1) - 0.5) * Math.PI * 0.9;
-            enemyBullets.push(new Bullet(this.x, this.y + this.r * 0.6, angle, false, 220));
+            enemyBullets.push(new Bullet(this.x, this.y + this.r * 0.6, angle, false, 220 * this.mult));
           }
         }
       }

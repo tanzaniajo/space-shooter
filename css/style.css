@@ -182,11 +182,11 @@ button:active {
   padding: 10px 14px;
 }
 
-.diff-baby { color: #6cff8c; border-color: #6cff8c; }
-.diff-baby:hover { background: #6cff8c; color: #05050f; box-shadow: 0 0 18px rgba(108, 255, 140, 0.8); }
+.diff-peaceful { color: #6cff8c; border-color: #6cff8c; }
+.diff-peaceful:hover { background: #6cff8c; color: #05050f; box-shadow: 0 0 18px rgba(108, 255, 140, 0.8); }
 
-.diff-noob { color: #7fffd4; border-color: #7fffd4; }
-.diff-noob:hover { background: #7fffd4; color: #05050f; box-shadow: 0 0 18px rgba(127, 255, 212, 0.8); }
+.diff-easy { color: #7fffd4; border-color: #7fffd4; }
+.diff-easy:hover { background: #7fffd4; color: #05050f; box-shadow: 0 0 18px rgba(127, 255, 212, 0.8); }
 
 .diff-normal { color: #ffd166; border-color: #ffd166; }
 .diff-normal:hover { background: #ffd166; color: #05050f; box-shadow: 0 0 18px rgba(255, 209, 102, 0.8); }
