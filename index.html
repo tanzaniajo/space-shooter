@@ -97,6 +97,27 @@
           <button id="boss-summon-button">SUMMON</button>
         </div>
       </div>
+      <div class="settings-row">
+        <label>Summon Power-Up <span class="default-hint">(spawns a collectible pickup)</span></label>
+        <div class="wave-jump-controls">
+          <select id="powerup-summon-select">
+            <option value="spread">Spread Shot (S)</option>
+            <option value="rapid">Rapid Fire (R)</option>
+            <option value="shield">Shield (⛊)</option>
+            <option value="life">Extra Life (+)</option>
+          </select>
+          <button id="powerup-summon-button">SUMMON</button>
+        </div>
+      </div>
+      <div class="settings-row">
+        <label>Instant Effects <span class="default-hint">(applies immediately, no pickup needed)</span></label>
+        <div class="instant-effects-row">
+          <button class="instant-effect-btn" data-effect="spread">SPREAD</button>
+          <button class="instant-effect-btn" data-effect="rapid">RAPID</button>
+          <button class="instant-effect-btn" data-effect="shield">SHIELD</button>
+          <button class="instant-effect-btn" data-effect="life">LIFE</button>
+        </div>
+      </div>
       <button id="settings-reset-button" style="margin-top: 4px;">RESET TO DEFAULTS</button>
       <button id="settings-close-button" style="margin-top: 6px;">CLOSE</button>
     </div>

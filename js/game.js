@@ -42,6 +42,9 @@
   const settingsResetButton = document.getElementById('settings-reset-button');
   const bossSummonSelect = document.getElementById('boss-summon-select');
   const bossSummonButton = document.getElementById('boss-summon-button');
+  const powerupSummonSelect = document.getElementById('powerup-summon-select');
+  const powerupSummonButton = document.getElementById('powerup-summon-button');
+  const instantEffectButtons = document.querySelectorAll('.instant-effect-btn');
 
   const HIGH_SCORE_KEY = 'starRunnerHighScore';
 
@@ -1211,6 +1214,16 @@
     const tier = Math.max(1, Math.round(wave / 10));
     const startX = rand(width * 0.2, width * 0.8);
     bosses.push(new Boss(tier, difficulty, { kindIndex, hpDivisor: 1, startX }));
+  });
+  powerupSummonButton.addEventListener('click', () => {
+    if (!player) return;
+    powerups.push(new PowerUp(player.x, 80, powerupSummonSelect.value));
+  });
+  instantEffectButtons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (!player) return;
+      applyPowerup(btn.dataset.effect);
+    });
   });
   settingsResetButton.addEventListener('click', () => {
     trainingSettings = { ...TRAINING_DEFAULTS };

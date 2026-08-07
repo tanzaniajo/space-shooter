@@ -286,6 +286,20 @@ button:active {
   border-radius: 4px;
 }
 
+.instant-effects-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+.instant-effects-row button {
+  flex: 1;
+  min-width: 60px;
+  padding: 6px 8px;
+  font-size: 11px;
+}
+
 #settings-reset-button,
 #settings-close-button {
   font-size: 12px;
