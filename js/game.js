@@ -164,7 +164,7 @@
   let spawnQueue = [];
   let spawnTimer = 0;
 
-  let player, bullets, enemyBullets, enemies, particles, powerups, boss, henchmen;
+  let player, bullets, enemyBullets, enemies, particles, powerups, boss, henchmen, dashTrail;
 
   // The further into the run (higher wave number), the faster everything moves and fires.
   function waveSpeedMult() {
@@ -205,10 +205,11 @@
       this.dashCooldown = 0;
       this.dashMax = 15;
       this.dashActive = 0;
-      this.dashDuration = 0.15;
+      this.dashDuration = 0.22;
       this.dashSpeed = 1500;
       this.dashDirX = 0;
       this.dashDirY = -1;
+      this.trailTimer = 0;
     }
 
     update(dt) {
@@ -232,7 +233,11 @@
         this.dashActive -= dt;
         this.x = clamp(this.x + this.dashDirX * this.dashSpeed * dt, this.r + 4, width - this.r - 4);
         this.y = clamp(this.y + this.dashDirY * this.dashSpeed * dt, this.r + 4, height - this.r - 4);
-        particles.push(new Particle(this.x, this.y, '#7fffd4'));
+        this.trailTimer -= dt;
+        if (this.trailTimer <= 0) {
+          this.trailTimer = 0.02;
+          dashTrail.push({ x: this.x, y: this.y, life: 0.35, maxLife: 0.35 });
+        }
       } else {
         this.x = clamp(this.x + dx * this.speed * dt, this.r + 4, width - this.r - 4);
         this.y = clamp(this.y + dy * this.speed * dt, this.r + 4, height - this.r - 4);
@@ -1028,6 +1033,7 @@
     powerups = [];
     boss = null;
     henchmen = [];
+    dashTrail = [];
     initStars();
     startWave(1);
   }
@@ -1185,6 +1191,8 @@
     particles = particles.filter((p) => p.life > 0);
     powerups = powerups.filter((p) => !p.dead);
     henchmen = henchmen.filter((h) => !h.dead);
+    for (const g of dashTrail) g.life -= dt;
+    dashTrail = dashTrail.filter((g) => g.life > 0);
     if (boss && boss.dead) boss = null;
 
     if (lives <= 0) {
@@ -1237,6 +1245,22 @@
     for (const h of henchmen) h.draw();
     if (boss) boss.draw();
     for (const p of particles) p.draw();
+    for (const g of dashTrail) {
+      ctx.save();
+      ctx.globalAlpha = clamp(g.life / g.maxLife, 0, 1) * 0.6;
+      ctx.translate(g.x, g.y);
+      ctx.fillStyle = '#7fffd4';
+      ctx.shadowColor = '#7fffd4';
+      ctx.shadowBlur = 10;
+      ctx.beginPath();
+      ctx.moveTo(0, -player.r);
+      ctx.lineTo(player.r * 0.8, player.r * 0.8);
+      ctx.lineTo(0, player.r * 0.4);
+      ctx.lineTo(-player.r * 0.8, player.r * 0.8);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
     if (state !== 'gameover') player.draw();
 
     if (waveMessageTimer > 0 && state === 'playing') {
