@@ -52,11 +52,9 @@ html, body {
   text-shadow: 0 0 8px rgba(255, 85, 119, 0.7);
 }
 
-#hud-gadget {
+.hud-badge {
   position: absolute;
   bottom: 18px;
-  left: 50%;
-  transform: translateX(-50%);
   color: #8899bb;
   font-size: 15px;
   letter-spacing: 1px;
@@ -69,13 +67,22 @@ html, body {
   transition: color 0.15s ease, border-color 0.15s ease;
 }
 
-#hud-gadget.ready {
+#hud-gadget {
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+#hud-dash {
+  left: 18px;
+}
+
+.hud-badge.ready {
   color: #ffd166;
   border-color: rgba(255, 209, 102, 0.8);
   text-shadow: 0 0 10px rgba(255, 209, 102, 0.7);
 }
 
-#hud-gadget.firing {
+.hud-badge.firing {
   color: #ff5577;
   border-color: rgba(255, 85, 119, 0.8);
   text-shadow: 0 0 10px rgba(255, 85, 119, 0.8);

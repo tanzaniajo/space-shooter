@@ -9,6 +9,7 @@
   const hudLevel = document.getElementById('hud-level');
   const hudLives = document.getElementById('hud-lives');
   const hudGadget = document.getElementById('hud-gadget');
+  const hudDash = document.getElementById('hud-dash');
 
   const startScreen = document.getElementById('start-screen');
   const pauseScreen = document.getElementById('pause-screen');
@@ -60,6 +61,7 @@
     hit: () => beep({ freq: 120, duration: 0.15, type: 'square', volume: 0.1, slideTo: 30 }),
     powerup: () => beep({ freq: 520, duration: 0.18, type: 'triangle', volume: 0.08, slideTo: 1040 }),
     wave: () => beep({ freq: 300, duration: 0.3, type: 'triangle', volume: 0.07, slideTo: 600 }),
+    dash: () => beep({ freq: 700, duration: 0.12, type: 'sine', volume: 0.07, slideTo: 1400 }),
   };
 
   // ---------- Input ----------
@@ -71,6 +73,7 @@
     }
     if (e.code === 'KeyP') togglePause();
     if (e.code === 'KeyE' && state === 'playing') player.useGadget();
+    if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') && state === 'playing') player.dash();
   });
   window.addEventListener('keyup', (e) => keys.delete(e.code));
 
@@ -197,6 +200,15 @@
       this.gadgetActive = 0;
       this.gadgetDuration = 2.5;
       this.gadgetFireTimer = 0;
+      this.facingX = 0;
+      this.facingY = -1;
+      this.dashCooldown = 0;
+      this.dashMax = 15;
+      this.dashActive = 0;
+      this.dashDuration = 0.15;
+      this.dashSpeed = 1500;
+      this.dashDirX = 0;
+      this.dashDirY = -1;
     }
 
     update(dt) {
@@ -211,8 +223,21 @@
         dx *= inv;
         dy *= inv;
       }
-      this.x = clamp(this.x + dx * this.speed * dt, this.r + 4, width - this.r - 4);
-      this.y = clamp(this.y + dy * this.speed * dt, this.r + 4, height - this.r - 4);
+      if (dx !== 0 || dy !== 0) {
+        this.facingX = dx;
+        this.facingY = dy;
+      }
+
+      if (this.dashActive > 0) {
+        this.dashActive -= dt;
+        this.x = clamp(this.x + this.dashDirX * this.dashSpeed * dt, this.r + 4, width - this.r - 4);
+        this.y = clamp(this.y + this.dashDirY * this.dashSpeed * dt, this.r + 4, height - this.r - 4);
+        particles.push(new Particle(this.x, this.y, '#7fffd4'));
+      } else {
+        this.x = clamp(this.x + dx * this.speed * dt, this.r + 4, width - this.r - 4);
+        this.y = clamp(this.y + dy * this.speed * dt, this.r + 4, height - this.r - 4);
+      }
+      if (this.dashCooldown > 0) this.dashCooldown -= dt;
 
       this.cooldown -= dt;
       const rate = this.rapid > 0 ? this.fireRate * 0.4 : this.fireRate;
@@ -244,6 +269,16 @@
       this.gadgetCooldown = inBossFight ? difficulty.bossGadgetCooldown : this.gadgetMax;
       this.gadgetFireTimer = 0;
       sfx.powerup();
+    }
+
+    dash() {
+      if (this.dashCooldown > 0 || this.dashActive > 0) return;
+      this.dashDirX = this.facingX;
+      this.dashDirY = this.facingY;
+      this.dashActive = this.dashDuration;
+      this.dashCooldown = this.dashMax;
+      this.invuln = Math.max(this.invuln, this.dashDuration + 0.1);
+      sfx.dash();
     }
 
     gadgetBurst() {
@@ -1175,6 +1210,16 @@
       } else {
         hudGadget.textContent = 'GADGET: READY (E)';
       }
+    }
+
+    hudDash.classList.toggle('firing', player.dashActive > 0);
+    hudDash.classList.toggle('ready', player.dashActive <= 0 && player.dashCooldown <= 0);
+    if (player.dashActive > 0) {
+      hudDash.textContent = 'DASH: ACTIVE';
+    } else if (player.dashCooldown > 0) {
+      hudDash.textContent = `DASH: ${Math.ceil(player.dashCooldown)}s`;
+    } else {
+      hudDash.textContent = 'DASH: READY (SHIFT)';
     }
   }
 
