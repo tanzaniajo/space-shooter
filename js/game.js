@@ -111,9 +111,6 @@
   window.addEventListener('mouseleave', () => { mouseDown = false; });
   window.addEventListener('blur', () => { mouseDown = false; keys.clear(); });
 
-  let lastMouseY = 9999;
-  window.addEventListener('mousemove', (e) => { lastMouseY = e.clientY; });
-
   // ---------- Utility ----------
   function rand(min, max) {
     return Math.random() * (max - min) + min;
@@ -1216,7 +1213,7 @@
     updateStars(dt);
 
     if (state === 'playing') {
-      canvas.style.cursor = isTraining && lastMouseY < 90 ? 'auto' : 'none';
+      canvas.style.cursor = isTraining ? 'auto' : 'none';
     } else {
       canvas.style.cursor = 'auto';
     }
