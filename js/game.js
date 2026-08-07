@@ -142,7 +142,7 @@
   // enemiesAttack: grunt enemies fire bullets. bossAttack: boss fires bullets (always true).
   // enemyMult scales grunt/boss hp, speed and bullet speed upward for Hard/Impossible.
   const DIFFICULTIES = {
-    peaceful: { label: 'PEACEFUL', gadgetCooldown: 0, enemiesAttack: false, bossAttack: true, gadgetEnabled: true, bossTeleport: false, enemyMult: 1 },
+    peaceful: { label: 'PEACEFUL', gadgetCooldown: 0, bossGadgetCooldown: 15, enemiesAttack: false, bossAttack: true, gadgetEnabled: true, bossTeleport: false, enemyMult: 1 },
     easy: { label: 'EASY', gadgetCooldown: 30, enemiesAttack: false, bossAttack: true, gadgetEnabled: true, bossTeleport: false, enemyMult: 1 },
     normal: { label: 'NORMAL', gadgetCooldown: 50, enemiesAttack: true, bossAttack: true, gadgetEnabled: true, bossTeleport: false, enemyMult: 1 },
     hard: { label: 'HARD', gadgetCooldown: 90, enemiesAttack: true, bossAttack: true, gadgetEnabled: true, bossTeleport: false, enemyMult: 1.3 },
@@ -240,7 +240,8 @@
       if (!this.gadgetEnabled) return;
       if (this.gadgetCooldown > 0 || this.gadgetActive > 0) return;
       this.gadgetActive = this.gadgetDuration;
-      this.gadgetCooldown = this.gadgetMax;
+      const inBossFight = boss && difficulty.bossGadgetCooldown !== undefined;
+      this.gadgetCooldown = inBossFight ? difficulty.bossGadgetCooldown : this.gadgetMax;
       this.gadgetFireTimer = 0;
       sfx.powerup();
     }
