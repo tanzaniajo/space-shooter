@@ -163,6 +163,11 @@
 
   let player, bullets, enemyBullets, enemies, particles, powerups, boss, henchmen;
 
+  // The further into the run (higher wave number), the faster everything moves and fires.
+  function waveSpeedMult() {
+    return clamp(1 + (wave - 1) * 0.015, 1, 2.2);
+  }
+
   function getHighScore() {
     return Number(localStorage.getItem(HIGH_SCORE_KEY) || 0);
   }
@@ -357,17 +362,18 @@
     constructor(type, x) {
       const def = ENEMY_TYPES[type];
       const mult = difficulty.enemyMult;
+      const speedMult = mult * waveSpeedMult();
       this.type = type;
       this.x = x;
       this.y = -40;
       this.r = def.r;
       this.hp = Math.ceil(def.hp * mult);
       this.maxHp = this.hp;
-      this.speed = def.speed * mult;
+      this.speed = def.speed * speedMult;
       this.color = def.color;
       this.scoreValue = def.score;
-      this.shootChance = def.shootChance * mult;
-      this.bulletSpeed = 260 * mult;
+      this.shootChance = def.shootChance * speedMult;
+      this.bulletSpeed = 260 * speedMult;
       this.t = rand(0, Math.PI * 2);
       this.baseX = x;
       this.dead = false;
@@ -501,6 +507,7 @@
     constructor(type, x, y) {
       const def = HENCHMAN_TYPES[type];
       const mult = difficulty.enemyMult;
+      const speedMult = mult * waveSpeedMult();
       this.type = type;
       this.x = x;
       this.y = y;
@@ -509,9 +516,10 @@
       this.maxHp = this.hp;
       this.color = def.color;
       this.scoreValue = def.score;
-      this.speed = def.speed * mult;
+      this.speed = def.speed * speedMult;
+      this.speedMult = speedMult;
       this.t = 0;
-      this.shootTimer = rand(0.8, 1.6);
+      this.shootTimer = rand(0.8, 1.6) / speedMult;
       this.dead = false;
 
       if (this.type === 'spawnling') {
@@ -534,9 +542,9 @@
         this.x += Math.sin(this.t * 2.2) * 55 * dt;
         this.shootTimer -= dt;
         if (difficulty.enemiesAttack && this.shootTimer <= 0) {
-          this.shootTimer = rand(1.3, 2.1);
+          this.shootTimer = rand(1.3, 2.1) / this.speedMult;
           sfx.enemyShoot();
-          enemyBullets.push(new Bullet(this.x, this.y + this.r, 0, false, 300, this.color));
+          enemyBullets.push(new Bullet(this.x, this.y + this.r, 0, false, 300 * this.speedMult, this.color));
         }
         if (this.y > height + 40) this.dead = true;
       }
@@ -593,6 +601,7 @@
       const kindDef = BOSS_KINDS[(tier - 1) % BOSS_KINDS.length];
       this.tier = tier;
       this.mult = diff.enemyMult;
+      this.speedMult = this.mult * waveSpeedMult();
       this.kindKey = kindDef.key;
       this.name = kindDef.name;
       this.color = kindDef.color;
@@ -605,7 +614,7 @@
       this.baseY = 130;
       this.targetY = 130;
       this.phase = 'entering';
-      this.enterSpeed = 140;
+      this.enterSpeed = 140 * this.speedMult;
       this.t = 0;
       this.spinAngle = 0;
       this.shootTimer = 1.2;
@@ -613,13 +622,13 @@
       this.dead = false;
       this.scoreValue = 300 + tier * 100;
       this.teleportEnabled = diff.bossTeleport;
-      this.teleportTimer = rand(3, 5);
+      this.teleportTimer = rand(3, 5) / this.speedMult;
       this.teleportFlash = 0;
       this.waypointX = width / 2;
       this.waypointY = 130;
       this.waypointTimer = 0;
       this.henchmanCfg = kindDef.henchman;
-      this.henchTimer = this.henchmanCfg ? rand(2, 3.5) : Infinity;
+      this.henchTimer = this.henchmanCfg ? rand(2, 3.5) / this.speedMult : Infinity;
     }
     teleport() {
       spawnExplosion(this.x, this.y, '#c86bff');
@@ -660,7 +669,7 @@
           const dx = this.waypointX - this.x;
           const dy = this.waypointY - this.y;
           const dist = Math.hypot(dx, dy) || 1;
-          const spd = 170;
+          const spd = 170 * this.speedMult;
           this.x = clamp(this.x + (dx / dist) * spd * dt, this.r + 10, width - this.r - 10);
           this.y = clamp(this.y + (dy / dist) * spd * dt, 60, height * 0.5);
           break;
@@ -672,7 +681,7 @@
           break;
         }
         case 'overmind': {
-          this.x = clamp(this.x + (player.x - this.x) * 1.4 * dt, this.r + 10, width - this.r - 10);
+          this.x = clamp(this.x + (player.x - this.x) * 1.4 * this.speedMult * dt, this.r + 10, width - this.r - 10);
           this.y = clamp(this.baseY + Math.sin(this.t * 0.6) * 90, 60, height * 0.5);
           break;
         }
@@ -686,7 +695,7 @@
         juggernaut: enraged ? 0.8 : 1.2,
         overmind: enraged ? 0.4 : 0.65,
       }[this.kindKey];
-      return base / this.mult;
+      return base / this.speedMult;
     }
     performAttack() {
       sfx.enemyShoot();
@@ -696,7 +705,7 @@
         case 'serpent': {
           const baseAngle = Math.atan2(dx, -dy);
           for (const off of [-0.35, -0.15, 0, 0.15, 0.35]) {
-            enemyBullets.push(new Bullet(this.x, this.y + this.r * 0.6, baseAngle + off, false, 240 * this.mult, this.color));
+            enemyBullets.push(new Bullet(this.x, this.y + this.r * 0.6, baseAngle + off, false, 240 * this.speedMult, this.color));
           }
           break;
         }
@@ -704,21 +713,21 @@
           const count = 6;
           for (let i = 0; i < count; i++) {
             const angle = this.spinAngle + (i / count) * Math.PI * 2;
-            enemyBullets.push(new Bullet(this.x, this.y, angle, false, 200 * this.mult, this.color));
+            enemyBullets.push(new Bullet(this.x, this.y, angle, false, 200 * this.speedMult, this.color));
           }
           this.spinAngle += 0.35;
           break;
         }
         case 'swarmqueen': {
           const angle = Math.atan2(dx, -dy);
-          enemyBullets.push(new Bullet(this.x, this.y + this.r * 0.6, angle, false, 150 * this.mult, this.color));
+          enemyBullets.push(new Bullet(this.x, this.y + this.r * 0.6, angle, false, 150 * this.speedMult, this.color));
           break;
         }
         case 'juggernaut': {
           const count = 7;
           for (let i = 0; i < count; i++) {
             const angle = (i / (count - 1) - 0.5) * Math.PI * 0.6;
-            const b = new Bullet(this.x, this.y + this.r * 0.6, angle, false, 150 * this.mult, this.color);
+            const b = new Bullet(this.x, this.y + this.r * 0.6, angle, false, 150 * this.speedMult, this.color);
             b.r = 6;
             enemyBullets.push(b);
           }
@@ -728,7 +737,7 @@
           const arms = 3;
           for (let i = 0; i < arms; i++) {
             const angle = this.spinAngle + (i / arms) * Math.PI * 2;
-            enemyBullets.push(new Bullet(this.x, this.y, angle, false, 220 * this.mult, this.color));
+            enemyBullets.push(new Bullet(this.x, this.y, angle, false, 220 * this.speedMult, this.color));
           }
           this.spinAngle += 0.5;
           break;
@@ -736,7 +745,7 @@
       }
     }
     update(dt) {
-      this.t += dt;
+      this.t += dt * this.speedMult;
       if (this.hitFlash > 0) this.hitFlash -= dt;
       if (this.teleportFlash > 0) this.teleportFlash -= dt;
 
@@ -756,7 +765,7 @@
       if (this.teleportEnabled) {
         this.teleportTimer -= dt;
         if (this.teleportTimer <= 0) {
-          this.teleportTimer = enraged ? rand(2.5, 3.5) : rand(3.5, 5.5);
+          this.teleportTimer = (enraged ? rand(2.5, 3.5) : rand(3.5, 5.5)) / this.speedMult;
           this.teleport();
         }
       }
@@ -772,7 +781,7 @@
       if (this.henchmanCfg) {
         this.henchTimer -= dt;
         if (this.henchTimer <= 0) {
-          this.henchTimer = this.henchmanCfg.interval / this.mult;
+          this.henchTimer = this.henchmanCfg.interval / this.speedMult;
           for (let i = 0; i < this.henchmanCfg.count; i++) {
             henchmen.push(new Henchman(this.henchmanCfg.type, this.x + rand(-70, 70), this.y + this.r + 10));
           }
@@ -1010,8 +1019,8 @@
   resumeButton.addEventListener('click', togglePause);
   restartButton.addEventListener('click', () => {
     gameOverScreen.classList.add('hidden');
-    resetGame();
-    state = 'playing';
+    startScreen.classList.remove('hidden');
+    state = 'start';
   });
 
   // ---------- Update ----------
