@@ -161,7 +161,7 @@
   let spawnQueue = [];
   let spawnTimer = 0;
 
-  let player, bullets, enemyBullets, enemies, particles, powerups, boss;
+  let player, bullets, enemyBullets, enemies, particles, powerups, boss, henchmen;
 
   function getHighScore() {
     return Number(localStorage.getItem(HIGH_SCORE_KEY) || 0);
@@ -321,7 +321,7 @@
   }
 
   class Bullet {
-    constructor(x, y, angle = 0, fromPlayer = true, speed = 620) {
+    constructor(x, y, angle = 0, fromPlayer = true, speed = 620, color = null) {
       this.x = x;
       this.y = y;
       this.r = 3;
@@ -329,6 +329,7 @@
       this.vx = Math.sin(angle) * speed;
       this.vy = -Math.cos(angle) * speed;
       this.fromPlayer = fromPlayer;
+      this.color = color;
       this.dead = false;
     }
     update(dt) {
@@ -340,7 +341,7 @@
     }
     draw() {
       ctx.save();
-      ctx.fillStyle = this.fromPlayer ? '#7fffd4' : '#ff5577';
+      ctx.fillStyle = this.color || (this.fromPlayer ? '#7fffd4' : '#ff5577');
       ctx.shadowColor = ctx.fillStyle;
       ctx.shadowBlur = 8;
       ctx.beginPath();
@@ -495,38 +496,248 @@
     }
   }
 
+  const HENCHMAN_TYPES = {
+    spawnling: { r: 10, hp: 1, color: '#c86bff', score: 15, speed: 230 },
+    acolyte: { r: 13, hp: 2, color: '#39ffa0', score: 20, speed: 55 },
+  };
+
+  class Henchman {
+    constructor(type, x, y) {
+      const def = HENCHMAN_TYPES[type];
+      const mult = difficulty.enemyMult;
+      this.type = type;
+      this.x = x;
+      this.y = y;
+      this.r = def.r;
+      this.hp = Math.ceil(def.hp * mult);
+      this.maxHp = this.hp;
+      this.color = def.color;
+      this.scoreValue = def.score;
+      this.speed = def.speed * mult;
+      this.t = 0;
+      this.shootTimer = rand(0.8, 1.6);
+      this.dead = false;
+
+      if (this.type === 'spawnling') {
+        // dive-bombs toward the player's position at spawn time, ignores bullets
+        const dx = player.x - this.x;
+        const dy = height + 60 - this.y;
+        const dist = Math.hypot(dx, dy) || 1;
+        this.vx = (dx / dist) * this.speed;
+        this.vy = (dy / dist) * this.speed;
+      }
+    }
+    update(dt) {
+      this.t += dt;
+      if (this.type === 'spawnling') {
+        this.x += this.vx * dt;
+        this.y += this.vy * dt;
+        if (this.y > height + 40 || this.x < -40 || this.x > width + 40) this.dead = true;
+      } else if (this.type === 'acolyte') {
+        this.y += this.speed * dt;
+        this.x += Math.sin(this.t * 2.2) * 55 * dt;
+        this.shootTimer -= dt;
+        if (difficulty.enemiesAttack && this.shootTimer <= 0) {
+          this.shootTimer = rand(1.3, 2.1);
+          sfx.enemyShoot();
+          enemyBullets.push(new Bullet(this.x, this.y + this.r, 0, false, 300, this.color));
+        }
+        if (this.y > height + 40) this.dead = true;
+      }
+    }
+    hit(dmg) {
+      this.hp -= dmg;
+      if (this.hp <= 0) {
+        this.dead = true;
+        score += this.scoreValue;
+        spawnExplosion(this.x, this.y, this.color);
+        sfx.explosion();
+      } else {
+        sfx.hit();
+      }
+    }
+    draw() {
+      ctx.save();
+      ctx.translate(this.x, this.y);
+      ctx.fillStyle = this.color;
+      ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      if (this.type === 'spawnling') {
+        ctx.moveTo(0, -this.r);
+        ctx.lineTo(this.r * 0.75, 0);
+        ctx.lineTo(0, this.r);
+        ctx.lineTo(-this.r * 0.75, 0);
+      } else {
+        for (let i = 0; i < 6; i++) {
+          const a = (i / 6) * Math.PI * 2;
+          const px = Math.cos(a) * this.r;
+          const py = Math.sin(a) * this.r;
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  const BOSS_KINDS = [
+    { key: 'serpent', name: 'CRIMSON SERPENT', color: '#ff2f6e', hpBonus: 0, rBonus: 0, henchman: null },
+    { key: 'sentinel', name: 'AZURE SENTINEL', color: '#39c5ff', hpBonus: -10, rBonus: -4, henchman: null },
+    { key: 'swarmqueen', name: 'VIOLET SWARM QUEEN', color: '#c86bff', hpBonus: -20, rBonus: -6, henchman: { type: 'spawnling', interval: 3.2, count: 2 } },
+    { key: 'juggernaut', name: 'AMBER JUGGERNAUT', color: '#ff8c1a', hpBonus: 40, rBonus: 10, henchman: null },
+    { key: 'overmind', name: 'EMERALD OVERMIND', color: '#39ffa0', hpBonus: 20, rBonus: 4, henchman: { type: 'acolyte', interval: 4.5, count: 2 } },
+  ];
+
   class Boss {
     constructor(tier, diff) {
+      const kindDef = BOSS_KINDS[(tier - 1) % BOSS_KINDS.length];
       this.tier = tier;
       this.mult = diff.enemyMult;
-      this.r = 46 + Math.min(tier, 5) * 4;
-      this.maxHp = Math.ceil((70 + tier * 45) * this.mult);
+      this.kindKey = kindDef.key;
+      this.name = kindDef.name;
+      this.color = kindDef.color;
+      this.r = 46 + Math.min(tier, 5) * 4 + kindDef.rBonus;
+      this.maxHp = Math.ceil((70 + tier * 45 + kindDef.hpBonus) * this.mult);
       this.hp = this.maxHp;
       this.centerX = width / 2;
       this.x = width / 2;
       this.y = -this.r * 2;
+      this.baseY = 130;
       this.targetY = 130;
       this.phase = 'entering';
       this.enterSpeed = 140;
       this.t = 0;
+      this.spinAngle = 0;
       this.shootTimer = 1.2;
-      this.barrageTimer = 3.5;
       this.hitFlash = 0;
       this.dead = false;
-      this.color = '#ff2f6e';
       this.scoreValue = 300 + tier * 100;
       this.teleportEnabled = diff.bossTeleport;
       this.teleportTimer = rand(3, 5);
       this.teleportFlash = 0;
+      this.waypointX = width / 2;
+      this.waypointY = 130;
+      this.waypointTimer = 0;
+      this.henchmanCfg = kindDef.henchman;
+      this.henchTimer = this.henchmanCfg ? rand(2, 3.5) : Infinity;
     }
     teleport() {
       spawnExplosion(this.x, this.y, '#c86bff');
-      this.centerX = rand(width * 0.25, width * 0.75);
-      this.y = rand(90, 220);
+      const nx = rand(width * 0.25, width * 0.75);
+      const ny = rand(90, 220);
+      this.centerX = nx;
+      this.x = nx;
+      this.y = ny;
+      this.waypointX = nx;
+      this.waypointY = ny;
       this.t = 0;
-      spawnExplosion(this.centerX, this.y, '#c86bff');
+      spawnExplosion(nx, ny, '#c86bff');
       this.teleportFlash = 0.25;
       sfx.powerup();
+    }
+    updateMovement(dt) {
+      switch (this.kindKey) {
+        case 'serpent': {
+          const ampX = width * 0.28;
+          this.x = clamp(this.centerX + Math.sin(this.t * 0.7) * ampX, this.r + 10, width - this.r - 10);
+          this.y = clamp(this.baseY + Math.sin(this.t * 0.35) * 40, 60, height * 0.5);
+          break;
+        }
+        case 'sentinel': {
+          const ampX = width * 0.22;
+          this.x = clamp(this.centerX + Math.cos(this.t * 0.5) * ampX, this.r + 10, width - this.r - 10);
+          this.y = clamp(this.baseY + Math.sin(this.t * 0.5) * 70, 60, height * 0.5);
+          break;
+        }
+        case 'swarmqueen': {
+          this.waypointTimer -= dt;
+          const closeEnough = Math.abs(this.x - this.waypointX) < 8 && Math.abs(this.y - this.waypointY) < 8;
+          if (this.waypointTimer <= 0 || closeEnough) {
+            this.waypointTimer = rand(1.2, 2.2);
+            this.waypointX = rand(width * 0.2, width * 0.8);
+            this.waypointY = rand(80, height * 0.42);
+          }
+          const dx = this.waypointX - this.x;
+          const dy = this.waypointY - this.y;
+          const dist = Math.hypot(dx, dy) || 1;
+          const spd = 170;
+          this.x = clamp(this.x + (dx / dist) * spd * dt, this.r + 10, width - this.r - 10);
+          this.y = clamp(this.y + (dy / dist) * spd * dt, 60, height * 0.5);
+          break;
+        }
+        case 'juggernaut': {
+          const ampX = width * 0.24;
+          this.x = clamp(this.centerX + Math.sin(this.t * 0.35) * ampX, this.r + 10, width - this.r - 10);
+          this.y = clamp(this.baseY + Math.sin(this.t * 0.7) * 110, 60, height * 0.5);
+          break;
+        }
+        case 'overmind': {
+          this.x = clamp(this.x + (player.x - this.x) * 1.4 * dt, this.r + 10, width - this.r - 10);
+          this.y = clamp(this.baseY + Math.sin(this.t * 0.6) * 90, 60, height * 0.5);
+          break;
+        }
+      }
+    }
+    attackInterval(enraged) {
+      const base = {
+        serpent: enraged ? 0.5 : 0.9,
+        sentinel: enraged ? 0.35 : 0.55,
+        swarmqueen: enraged ? 0.9 : 1.4,
+        juggernaut: enraged ? 0.8 : 1.2,
+        overmind: enraged ? 0.4 : 0.65,
+      }[this.kindKey];
+      return base / this.mult;
+    }
+    performAttack() {
+      sfx.enemyShoot();
+      const dx = player.x - this.x;
+      const dy = player.y - this.y;
+      switch (this.kindKey) {
+        case 'serpent': {
+          const baseAngle = Math.atan2(dx, -dy);
+          for (const off of [-0.35, -0.15, 0, 0.15, 0.35]) {
+            enemyBullets.push(new Bullet(this.x, this.y + this.r * 0.6, baseAngle + off, false, 240 * this.mult, this.color));
+          }
+          break;
+        }
+        case 'sentinel': {
+          const count = 6;
+          for (let i = 0; i < count; i++) {
+            const angle = this.spinAngle + (i / count) * Math.PI * 2;
+            enemyBullets.push(new Bullet(this.x, this.y, angle, false, 200 * this.mult, this.color));
+          }
+          this.spinAngle += 0.35;
+          break;
+        }
+        case 'swarmqueen': {
+          const angle = Math.atan2(dx, -dy);
+          enemyBullets.push(new Bullet(this.x, this.y + this.r * 0.6, angle, false, 150 * this.mult, this.color));
+          break;
+        }
+        case 'juggernaut': {
+          const count = 7;
+          for (let i = 0; i < count; i++) {
+            const angle = (i / (count - 1) - 0.5) * Math.PI * 0.6;
+            const b = new Bullet(this.x, this.y + this.r * 0.6, angle, false, 150 * this.mult, this.color);
+            b.r = 6;
+            enemyBullets.push(b);
+          }
+          break;
+        }
+        case 'overmind': {
+          const arms = 3;
+          for (let i = 0; i < arms; i++) {
+            const angle = this.spinAngle + (i / arms) * Math.PI * 2;
+            enemyBullets.push(new Bullet(this.x, this.y, angle, false, 220 * this.mult, this.color));
+          }
+          this.spinAngle += 0.5;
+          break;
+        }
+      }
     }
     update(dt) {
       this.t += dt;
@@ -543,8 +754,7 @@
         return;
       }
 
-      const amplitude = width * 0.28;
-      this.x = clamp(this.centerX + Math.sin(this.t * 0.7) * amplitude, this.r + 10, width - this.r - 10);
+      this.updateMovement(dt);
       const enraged = this.hp < this.maxHp * 0.35;
 
       if (this.teleportEnabled) {
@@ -558,24 +768,17 @@
       if (difficulty.bossAttack) {
         this.shootTimer -= dt;
         if (this.shootTimer <= 0) {
-          this.shootTimer = (enraged ? 0.5 : 0.9) / this.mult;
-          sfx.enemyShoot();
-          const dx = player.x - this.x;
-          const dy = player.y - this.y;
-          const baseAngle = Math.atan2(dx, -dy);
-          for (const off of [-0.35, -0.15, 0, 0.15, 0.35]) {
-            enemyBullets.push(new Bullet(this.x, this.y + this.r * 0.6, baseAngle + off, false, 240 * this.mult));
-          }
+          this.shootTimer = this.attackInterval(enraged);
+          this.performAttack();
         }
+      }
 
-        this.barrageTimer -= dt;
-        if (this.barrageTimer <= 0) {
-          this.barrageTimer = (enraged ? 2.2 : 3.4) / this.mult;
-          sfx.enemyShoot();
-          const count = 9;
-          for (let i = 0; i < count; i++) {
-            const angle = (i / (count - 1) - 0.5) * Math.PI * 0.9;
-            enemyBullets.push(new Bullet(this.x, this.y + this.r * 0.6, angle, false, 220 * this.mult));
+      if (this.henchmanCfg) {
+        this.henchTimer -= dt;
+        if (this.henchTimer <= 0) {
+          this.henchTimer = this.henchmanCfg.interval / this.mult;
+          for (let i = 0; i < this.henchmanCfg.count; i++) {
+            henchmen.push(new Henchman(this.henchmanCfg.type, this.x + rand(-70, 70), this.y + this.r + 10));
           }
         }
       }
@@ -589,11 +792,16 @@
         this.dead = true;
         score += this.scoreValue;
         sfx.explosion();
-        for (let i = 0; i < 5; i++) {
-          spawnExplosion(this.x + rand(-30, 30), this.y + rand(-20, 20), this.color);
+        for (let i = 0; i < 8; i++) {
+          spawnExplosion(this.x + rand(-40, 40), this.y + rand(-30, 30), this.color);
         }
-        powerups.push(new PowerUp(this.x - 30, this.y, POWERUP_TYPES[Math.floor(rand(0, POWERUP_TYPES.length))]));
-        powerups.push(new PowerUp(this.x + 30, this.y, POWERUP_TYPES[Math.floor(rand(0, POWERUP_TYPES.length))]));
+        const dropCount = 6;
+        for (let i = 0; i < dropCount; i++) {
+          const angle = (i / dropCount) * Math.PI * 2;
+          const dist = rand(20, 55);
+          const kind = POWERUP_TYPES[Math.floor(rand(0, POWERUP_TYPES.length))];
+          powerups.push(new PowerUp(this.x + Math.cos(angle) * dist, this.y + Math.sin(angle) * dist, kind));
+        }
       } else {
         sfx.hit();
       }
@@ -605,15 +813,67 @@
       ctx.strokeStyle = 'rgba(255,255,255,0.7)';
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(0, this.r);
-      ctx.lineTo(this.r, -this.r * 0.3);
-      ctx.lineTo(this.r * 0.55, -this.r * 0.9);
-      ctx.lineTo(0, -this.r * 0.4);
-      ctx.lineTo(-this.r * 0.55, -this.r * 0.9);
-      ctx.lineTo(-this.r, -this.r * 0.3);
-      ctx.closePath();
+      switch (this.kindKey) {
+        case 'serpent':
+          ctx.moveTo(0, this.r);
+          ctx.lineTo(this.r, -this.r * 0.3);
+          ctx.lineTo(this.r * 0.55, -this.r * 0.9);
+          ctx.lineTo(0, -this.r * 0.4);
+          ctx.lineTo(-this.r * 0.55, -this.r * 0.9);
+          ctx.lineTo(-this.r, -this.r * 0.3);
+          ctx.closePath();
+          break;
+        case 'sentinel':
+          for (let i = 0; i < 6; i++) {
+            const a = (i / 6) * Math.PI * 2 - Math.PI / 2;
+            const px = Math.cos(a) * this.r;
+            const py = Math.sin(a) * this.r;
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          }
+          ctx.closePath();
+          break;
+        case 'swarmqueen':
+          for (let i = 0; i < 10; i++) {
+            const a = (i / 10) * Math.PI * 2 - Math.PI / 2;
+            const rad = i % 2 === 0 ? this.r : this.r * 0.5;
+            const px = Math.cos(a) * rad;
+            const py = Math.sin(a) * rad;
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          }
+          ctx.closePath();
+          break;
+        case 'juggernaut':
+          for (let i = 0; i < 8; i++) {
+            const a = (i / 8) * Math.PI * 2;
+            const px = Math.cos(a) * this.r;
+            const py = Math.sin(a) * this.r * 0.85;
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          }
+          ctx.closePath();
+          break;
+        case 'overmind':
+          for (let i = 0; i < 18; i++) {
+            const a = (i / 18) * Math.PI * 2;
+            const rad = i % 2 === 0 ? this.r : this.r * 0.62;
+            const px = Math.cos(a) * rad;
+            const py = Math.sin(a) * rad;
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          }
+          ctx.closePath();
+          break;
+      }
       ctx.fill();
       ctx.stroke();
+      if (this.kindKey === 'sentinel') {
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(0, 0, this.r * 0.25, 0, Math.PI * 2);
+        ctx.fill();
+      }
       ctx.restore();
 
       const barW = 340;
@@ -622,7 +882,7 @@
       ctx.save();
       ctx.fillStyle = 'rgba(0,0,0,0.55)';
       ctx.fillRect(barX, barY, barW, 14);
-      ctx.fillStyle = '#ff2f6e';
+      ctx.fillStyle = this.color;
       ctx.fillRect(barX, barY, barW * (this.hp / this.maxHp), 14);
       ctx.strokeStyle = 'rgba(255,255,255,0.6)';
       ctx.lineWidth = 1.5;
@@ -630,7 +890,7 @@
       ctx.fillStyle = '#ffffff';
       ctx.font = 'bold 12px monospace';
       ctx.textAlign = 'center';
-      ctx.fillText('BOSS', width / 2, barY - 5);
+      ctx.fillText(this.name, width / 2, barY - 5);
       ctx.restore();
     }
   }
@@ -717,6 +977,7 @@
     particles = [];
     powerups = [];
     boss = null;
+    henchmen = [];
     initStars();
     startWave(1);
   }
@@ -773,8 +1034,8 @@
     }
     if (waveMessageTimer > 0) waveMessageTimer -= dt;
 
-    // advance to next wave once cleared (grunt wave empty, or boss defeated)
-    if (spawnQueue.length === 0 && enemies.length === 0 && !boss) {
+    // advance to next wave once cleared (grunt wave empty, or boss + henchmen defeated)
+    if (spawnQueue.length === 0 && enemies.length === 0 && !boss && henchmen.length === 0) {
       startWave(wave + 1);
     }
 
@@ -783,6 +1044,7 @@
     for (const e of enemies) e.update(dt);
     for (const p of particles) p.update(dt);
     for (const pu of powerups) pu.update(dt);
+    for (const h of henchmen) h.update(dt);
     if (boss) boss.update(dt);
 
     // player bullets vs enemies
@@ -793,6 +1055,19 @@
         if (circleHit(b, e)) {
           b.dead = true;
           e.hit(1);
+          break;
+        }
+      }
+    }
+
+    // player bullets vs henchmen
+    for (const b of bullets) {
+      if (b.dead) continue;
+      for (const h of henchmen) {
+        if (h.dead) continue;
+        if (circleHit(b, h)) {
+          b.dead = true;
+          h.hit(1);
           break;
         }
       }
@@ -829,6 +1104,17 @@
       }
     }
 
+    // henchmen vs player (collision)
+    for (const h of henchmen) {
+      if (h.dead) continue;
+      if (circleHit(h, player)) {
+        h.dead = true;
+        spawnExplosion(h.x, h.y, h.color);
+        sfx.explosion();
+        player.hit();
+      }
+    }
+
     // boss vs player (contact damage)
     if (boss && !boss.dead && boss.phase === 'fighting' && circleHit(boss, player)) {
       player.hit();
@@ -848,6 +1134,7 @@
     enemies = enemies.filter((e) => !e.dead);
     particles = particles.filter((p) => p.life > 0);
     powerups = powerups.filter((p) => !p.dead);
+    henchmen = henchmen.filter((h) => !h.dead);
     if (boss && boss.dead) boss = null;
 
     if (lives <= 0) {
@@ -887,6 +1174,7 @@
     for (const b of bullets) b.draw();
     for (const b of enemyBullets) b.draw();
     for (const e of enemies) e.draw();
+    for (const h of henchmen) h.draw();
     if (boss) boss.draw();
     for (const p of particles) p.draw();
     if (state !== 'gameover') player.draw();
