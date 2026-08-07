@@ -36,6 +36,10 @@
   const valDash = document.getElementById('val-dash');
   const valShoot = document.getElementById('val-shoot');
   const valMove = document.getElementById('val-move');
+  const toggleGodmode = document.getElementById('toggle-godmode');
+  const waveJumpInput = document.getElementById('wave-jump-input');
+  const waveJumpButton = document.getElementById('wave-jump-button');
+  const settingsResetButton = document.getElementById('settings-reset-button');
 
   const HIGH_SCORE_KEY = 'starRunnerHighScore';
 
@@ -107,6 +111,9 @@
   window.addEventListener('mouseleave', () => { mouseDown = false; });
   window.addEventListener('blur', () => { mouseDown = false; keys.clear(); });
 
+  let lastMouseY = 9999;
+  window.addEventListener('mousemove', (e) => { lastMouseY = e.clientY; });
+
   // ---------- Utility ----------
   function rand(min, max) {
     return Math.random() * (max - min) + min;
@@ -174,6 +181,7 @@
   let cameFromTraining = false;
   const TRAINING_DEFAULTS = { gadgetCooldown: 50, dashCooldown: 15, shootSpeed: 79, moveSpeed: 41 };
   let trainingSettings = { ...TRAINING_DEFAULTS };
+  let godMode = false;
 
   function shootSpeedToFireRate(v) {
     const minRate = 0.03;
@@ -198,6 +206,9 @@
     valDash.textContent = trainingSettings.dashCooldown;
     valShoot.textContent = trainingSettings.shootSpeed;
     valMove.textContent = trainingSettings.moveSpeed;
+    godMode = false;
+    toggleGodmode.checked = false;
+    waveJumpInput.value = 1;
   }
 
   // ---------- Game State ----------
@@ -352,6 +363,7 @@
     }
 
     hit() {
+      if (godMode) return false;
       if (this.invuln > 0) return false;
       if (this.shield > 0) {
         this.shield--;
@@ -1111,6 +1123,7 @@
       difficulty = DIFFICULTIES[btn.dataset.diff];
       isTraining = false;
       cameFromTraining = false;
+      godMode = false;
       settingsButton.classList.add('hidden');
       startScreen.classList.add('hidden');
       resetGame();
@@ -1169,6 +1182,22 @@
     valMove.textContent = trainingSettings.moveSpeed;
     if (player) player.speed = moveSpeedToPixels(trainingSettings.moveSpeed);
   });
+  toggleGodmode.addEventListener('change', () => {
+    godMode = toggleGodmode.checked;
+  });
+  waveJumpButton.addEventListener('click', () => {
+    const n = Math.max(1, Math.floor(Number(waveJumpInput.value) || 1));
+    waveJumpInput.value = n;
+    enemies = [];
+    spawnQueue = [];
+    henchmen = [];
+    boss = null;
+    startWave(n);
+  });
+  settingsResetButton.addEventListener('click', () => {
+    trainingSettings = { ...TRAINING_DEFAULTS };
+    applyTrainingSettings();
+  });
 
   resumeButton.addEventListener('click', togglePause);
   restartButton.addEventListener('click', () => {
@@ -1185,6 +1214,12 @@
   // ---------- Update ----------
   function update(dt) {
     updateStars(dt);
+
+    if (state === 'playing') {
+      canvas.style.cursor = isTraining && lastMouseY < 90 ? 'auto' : 'none';
+    } else {
+      canvas.style.cursor = 'auto';
+    }
 
     if (state !== 'playing') return;
 

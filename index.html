@@ -59,22 +59,33 @@
     <div id="settings-panel" class="overlay hidden">
       <h1>TRAINING SETTINGS</h1>
       <div class="settings-row">
-        <label>Gadget Cooldown: <span id="val-gadget">50</span>s</label>
+        <label>Gadget Cooldown: <span id="val-gadget">50</span>s <span class="default-hint">(default: 50s)</span></label>
         <input type="range" id="slider-gadget" min="0" max="100" step="1" value="50" />
       </div>
       <div class="settings-row">
-        <label>Dash Cooldown: <span id="val-dash">15</span>s</label>
+        <label>Dash Cooldown: <span id="val-dash">15</span>s <span class="default-hint">(default: 15s)</span></label>
         <input type="range" id="slider-dash" min="0" max="100" step="1" value="15" />
       </div>
       <div class="settings-row">
-        <label>Shooting Speed: <span id="val-shoot">80</span></label>
+        <label>Shooting Speed: <span id="val-shoot">80</span> <span class="default-hint">(default: 79)</span></label>
         <input type="range" id="slider-shoot" min="0" max="100" step="1" value="80" />
       </div>
       <div class="settings-row">
-        <label>Movement Speed: <span id="val-move">41</span></label>
+        <label>Movement Speed: <span id="val-move">41</span> <span class="default-hint">(default: 41)</span></label>
         <input type="range" id="slider-move" min="0" max="100" step="1" value="41" />
       </div>
-      <button id="settings-close-button" style="margin-top: 10px;">CLOSE</button>
+      <div class="settings-row settings-row-inline">
+        <label><input type="checkbox" id="toggle-godmode" /> God Mode (Invincible) <span class="default-hint">(default: off)</span></label>
+      </div>
+      <div class="settings-row">
+        <label>Jump to Wave <span class="default-hint">(default: 1)</span></label>
+        <div class="wave-jump-controls">
+          <input type="number" id="wave-jump-input" min="1" max="300" value="1" />
+          <button id="wave-jump-button">GO</button>
+        </div>
+      </div>
+      <button id="settings-reset-button" style="margin-top: 4px;">RESET TO DEFAULTS</button>
+      <button id="settings-close-button" style="margin-top: 6px;">CLOSE</button>
     </div>
 
     <div id="pause-screen" class="overlay hidden">

@@ -235,3 +235,48 @@ button:active {
   width: 100%;
   accent-color: #7fffd4;
 }
+
+.default-hint {
+  color: #556;
+  font-size: 11px;
+}
+
+.settings-row-inline label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.settings-row-inline input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #7fffd4;
+}
+
+.wave-jump-controls {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.wave-jump-controls input[type="number"] {
+  width: 70px;
+  padding: 6px 8px;
+  font-family: inherit;
+  font-size: 13px;
+  background: rgba(3, 3, 12, 0.6);
+  color: #e8f4ff;
+  border: 1px solid rgba(127, 255, 212, 0.4);
+  border-radius: 4px;
+}
+
+.wave-jump-controls button {
+  padding: 6px 14px;
+  font-size: 12px;
+}
+
+#settings-reset-button,
+#settings-close-button {
+  font-size: 12px;
+  padding: 8px 20px;
+}
