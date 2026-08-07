@@ -250,14 +250,10 @@
 
     shoot() {
       sfx.shoot();
-      const spreadLevels = [
-        [0],
-        [-0.12, 0.12],
-        [-0.22, 0, 0.22],
-        [-0.3, -0.1, 0.1, 0.3],
-      ];
-      const angles = spreadLevels[clamp(this.spread, 0, spreadLevels.length - 1)];
-      for (const a of angles) {
+      const count = this.spread + 1;
+      const maxAngle = Math.min(0.14 * this.spread, 0.55);
+      for (let i = 0; i < count; i++) {
+        const a = count === 1 ? 0 : -maxAngle + (i / (count - 1)) * maxAngle * 2;
         bullets.push(new Bullet(this.x, this.y - this.r, a));
       }
     }
@@ -910,7 +906,7 @@
     sfx.powerup();
     switch (kind) {
       case 'spread':
-        player.spread = clamp(player.spread + 1, 0, 3);
+        player.spread = clamp(player.spread + 1, 0, 7);
         break;
       case 'rapid':
         player.rapid = 6;
@@ -919,7 +915,7 @@
         player.shield = clamp(player.shield + 1, 0, 3);
         break;
       case 'life':
-        lives = clamp(lives + 1, 0, 9);
+        lives = clamp(lives + 1, 0, 15);
         break;
     }
   }
@@ -1143,7 +1139,7 @@
 
     hudScore.textContent = `SCORE: ${score}`;
     hudLevel.textContent = boss ? `BOSS WAVE ${wave}` : `WAVE ${wave}`;
-    hudLives.textContent = `LIVES: ${'❤'.repeat(clamp(lives, 0, 9))}`;
+    hudLives.textContent = `LIVES: ${'❤'.repeat(clamp(lives, 0, 15))}`;
 
     if (!player.gadgetEnabled) {
       hudGadget.classList.remove('firing', 'ready');
