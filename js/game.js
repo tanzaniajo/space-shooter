@@ -219,7 +219,7 @@
   let spawnQueue = [];
   let spawnTimer = 0;
 
-  let player, bullets, enemyBullets, enemies, particles, powerups, boss, henchmen, dashTrail;
+  let player, bullets, enemyBullets, enemies, particles, powerups, bosses, henchmen, dashTrail;
 
   // The further into the run (higher wave number), the faster everything moves and fires.
   function waveSpeedMult() {
@@ -325,7 +325,7 @@
       if (!this.gadgetEnabled) return;
       if (this.gadgetCooldown > 0 || this.gadgetActive > 0) return;
       this.gadgetActive = this.gadgetDuration;
-      const inBossFight = boss && difficulty.bossGadgetCooldown !== undefined;
+      const inBossFight = bosses.length > 0 && difficulty.bossGadgetCooldown !== undefined;
       this.gadgetCooldown = inBossFight ? difficulty.bossGadgetCooldown : this.gadgetMax;
       this.gadgetFireTimer = 0;
       sfx.powerup();
@@ -694,8 +694,11 @@
   ];
 
   class Boss {
-    constructor(tier, diff) {
-      const kindDef = BOSS_KINDS[(tier - 1) % BOSS_KINDS.length];
+    constructor(tier, diff, opts = {}) {
+      const kindIndex = opts.kindIndex !== undefined ? opts.kindIndex : (tier - 1) % BOSS_KINDS.length;
+      const kindDef = BOSS_KINDS[((kindIndex % BOSS_KINDS.length) + BOSS_KINDS.length) % BOSS_KINDS.length];
+      const hpDivisor = opts.hpDivisor || 1;
+      const startX = opts.startX !== undefined ? opts.startX : width / 2;
       this.tier = tier;
       this.mult = diff.enemyMult;
       this.speedMult = this.mult * waveSpeedMult();
@@ -703,10 +706,10 @@
       this.name = kindDef.name;
       this.color = kindDef.color;
       this.r = 46 + Math.min(tier, 5) * 4 + kindDef.rBonus;
-      this.maxHp = Math.ceil((380 + tier * 210 + kindDef.hpBonus * 3) * this.mult);
+      this.maxHp = Math.ceil(((380 + tier * 210 + kindDef.hpBonus * 3) * this.mult) / hpDivisor);
       this.hp = this.maxHp;
-      this.centerX = width / 2;
-      this.x = width / 2;
+      this.centerX = startX;
+      this.x = startX;
       this.y = -this.r * 2;
       this.baseY = 130;
       this.targetY = 130;
@@ -717,11 +720,11 @@
       this.shootTimer = 1.2;
       this.hitFlash = 0;
       this.dead = false;
-      this.scoreValue = 300 + tier * 100;
+      this.scoreValue = Math.ceil((300 + tier * 100) / hpDivisor);
       this.teleportEnabled = diff.bossTeleport;
       this.teleportTimer = rand(3, 5) / this.speedMult;
       this.teleportFlash = 0;
-      this.waypointX = width / 2;
+      this.waypointX = startX;
       this.waypointY = 130;
       this.waypointTimer = 0;
       this.henchmanCfg = kindDef.henchman;
@@ -987,8 +990,8 @@
       }
       ctx.restore();
 
-      const barW = 340;
-      const barX = width / 2 - barW / 2;
+      const barW = bosses.length > 1 ? 200 : 340;
+      const barX = clamp(this.x - barW / 2, 6, width - barW - 6);
       const barY = 46;
       ctx.save();
       ctx.fillStyle = 'rgba(0,0,0,0.55)';
@@ -1001,7 +1004,7 @@
       ctx.fillStyle = '#ffffff';
       ctx.font = 'bold 12px monospace';
       ctx.textAlign = 'center';
-      ctx.fillText(this.name, width / 2, barY - 5);
+      ctx.fillText(this.name, barX + barW / 2, barY - 5);
       ctx.restore();
     }
   }
@@ -1064,8 +1067,17 @@
     if (n % 10 === 0) {
       spawnQueue = [];
       spawnTimer = 0;
-      boss = new Boss(Math.floor(n / 10), difficulty);
-      waveMessage = 'WARNING: BOSS INCOMING';
+      const tier = Math.floor(n / 10);
+      // From wave 60 on, every 40 waves adds another simultaneous boss, each halved in HP again.
+      const bossCount = n >= 60 ? 2 + Math.floor((n - 60) / 40) : 1;
+      const hpDivisor = bossCount > 1 ? Math.pow(2, bossCount - 1) : 1;
+      bosses = [];
+      for (let i = 0; i < bossCount; i++) {
+        const startX = (width * (i + 1)) / (bossCount + 1);
+        const kindIndex = tier - 1 + i;
+        bosses.push(new Boss(tier, difficulty, { kindIndex, hpDivisor, startX }));
+      }
+      waveMessage = bossCount > 1 ? `WARNING: ${bossCount} BOSSES INCOMING` : 'WARNING: BOSS INCOMING';
       waveMessageTimer = 2.2;
     } else {
       spawnQueue = buildWave(n);
@@ -1087,7 +1099,7 @@
     enemies = [];
     particles = [];
     powerups = [];
-    boss = null;
+    bosses = [];
     henchmen = [];
     dashTrail = [];
     initStars();
@@ -1188,7 +1200,7 @@
     enemies = [];
     spawnQueue = [];
     henchmen = [];
-    boss = null;
+    bosses = [];
     startWave(n);
   });
   settingsResetButton.addEventListener('click', () => {
@@ -1230,8 +1242,8 @@
     }
     if (waveMessageTimer > 0) waveMessageTimer -= dt;
 
-    // advance to next wave once cleared (grunt wave empty, or boss + henchmen defeated)
-    if (spawnQueue.length === 0 && enemies.length === 0 && !boss && henchmen.length === 0) {
+    // advance to next wave once cleared (grunt wave empty, or bosses + henchmen defeated)
+    if (spawnQueue.length === 0 && enemies.length === 0 && bosses.length === 0 && henchmen.length === 0) {
       startWave(wave + 1);
     }
 
@@ -1241,7 +1253,7 @@
     for (const p of particles) p.update(dt);
     for (const pu of powerups) pu.update(dt);
     for (const h of henchmen) h.update(dt);
-    if (boss) boss.update(dt);
+    for (const b of bosses) b.update(dt);
 
     // player bullets vs enemies
     for (const b of bullets) {
@@ -1269,13 +1281,14 @@
       }
     }
 
-    // player bullets vs boss
-    if (boss && !boss.dead) {
+    // player bullets vs bosses
+    for (const bo of bosses) {
+      if (bo.dead) continue;
       for (const b of bullets) {
         if (b.dead) continue;
-        if (circleHit(b, boss)) {
+        if (circleHit(b, bo)) {
           b.dead = true;
-          boss.hit(1);
+          bo.hit(1);
         }
       }
     }
@@ -1311,9 +1324,11 @@
       }
     }
 
-    // boss vs player (contact damage)
-    if (boss && !boss.dead && boss.phase === 'fighting' && circleHit(boss, player)) {
-      player.hit();
+    // bosses vs player (contact damage)
+    for (const bo of bosses) {
+      if (!bo.dead && bo.phase === 'fighting' && circleHit(bo, player)) {
+        player.hit();
+      }
     }
 
     // powerups vs player
@@ -1333,14 +1348,14 @@
     henchmen = henchmen.filter((h) => !h.dead);
     for (const g of dashTrail) g.life -= dt;
     dashTrail = dashTrail.filter((g) => g.life > 0);
-    if (boss && boss.dead) boss = null;
+    bosses = bosses.filter((b) => !b.dead);
 
     if (lives <= 0) {
       gameOver();
     }
 
     hudScore.textContent = `SCORE: ${score}`;
-    hudLevel.textContent = boss ? `BOSS WAVE ${wave}` : `WAVE ${wave}`;
+    hudLevel.textContent = bosses.length > 0 ? `BOSS WAVE ${wave}` : `WAVE ${wave}`;
     hudLives.textContent = `LIVES: ${'❤'.repeat(clamp(lives, 0, 15))}`;
 
     if (!player.gadgetEnabled) {
@@ -1383,7 +1398,7 @@
     for (const b of enemyBullets) b.draw();
     for (const e of enemies) e.draw();
     for (const h of henchmen) h.draw();
-    if (boss) boss.draw();
+    for (const b of bosses) b.draw();
     for (const p of particles) p.draw();
     for (const g of dashTrail) {
       ctx.save();
@@ -1406,7 +1421,7 @@
     if (waveMessageTimer > 0 && state === 'playing') {
       ctx.save();
       ctx.globalAlpha = clamp(waveMessageTimer, 0, 1);
-      ctx.fillStyle = boss ? '#ff5577' : '#7fffd4';
+      ctx.fillStyle = bosses.length > 0 ? '#ff5577' : '#7fffd4';
       ctx.textAlign = 'center';
       ctx.font = 'bold 34px monospace';
       ctx.shadowColor = ctx.fillStyle;
