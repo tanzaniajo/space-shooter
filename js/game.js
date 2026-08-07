@@ -165,7 +165,7 @@
 
   // The further into the run (higher wave number), the faster everything moves and fires.
   function waveSpeedMult() {
-    return clamp(1 + (wave - 1) * 0.015, 1, 2.2);
+    return clamp(1 + (wave - 1) * 0.018, 1, 2.2);
   }
 
   function getHighScore() {
@@ -183,9 +183,9 @@
       this.x = width / 2;
       this.y = height - 100;
       this.r = 14;
-      this.speed = 380;
+      this.speed = 430;
       this.cooldown = 0;
-      this.fireRate = 0.18;
+      this.fireRate = 0.15;
       this.shield = 0;
       this.spread = 0; // spread shot power level
       this.rapid = 0; // rapid fire timer
@@ -323,7 +323,7 @@
   }
 
   class Bullet {
-    constructor(x, y, angle = 0, fromPlayer = true, speed = 620, color = null) {
+    constructor(x, y, angle = 0, fromPlayer = true, speed = 700, color = null) {
       this.x = x;
       this.y = y;
       this.r = 3;
@@ -354,9 +354,9 @@
   }
 
   const ENEMY_TYPES = {
-    drone: { r: 14, hp: 1, speed: 90, color: '#ff5577', score: 10, shootChance: 0 },
-    striker: { r: 16, hp: 2, speed: 120, color: '#ffb454', score: 20, shootChance: 0.006 },
-    tank: { r: 22, hp: 5, speed: 55, color: '#c86bff', score: 40, shootChance: 0.004 },
+    drone: { r: 14, hp: 1, speed: 105, color: '#ff5577', score: 10, shootChance: 0 },
+    striker: { r: 16, hp: 2, speed: 140, color: '#ffb454', score: 20, shootChance: 0.006 },
+    tank: { r: 22, hp: 5, speed: 65, color: '#c86bff', score: 40, shootChance: 0.004 },
   };
 
   class Enemy {
@@ -630,6 +630,7 @@
       this.waypointTimer = 0;
       this.henchmanCfg = kindDef.henchman;
       this.henchTimer = this.henchmanCfg ? rand(2, 3.5) / this.speedMult : Infinity;
+      this.regenDelay = 0;
     }
     teleport() {
       spawnExplosion(this.x, this.y, '#c86bff');
@@ -725,9 +726,10 @@
           break;
         }
         case 'juggernaut': {
+          const baseAngle = Math.atan2(dx, -dy);
           const count = 7;
           for (let i = 0; i < count; i++) {
-            const angle = (i / (count - 1) - 0.5) * Math.PI * 0.6;
+            const angle = baseAngle + (i / (count - 1) - 0.5) * Math.PI * 0.6;
             const b = new Bullet(this.x, this.y + this.r * 0.6, angle, false, 150 * this.speedMult, this.color);
             b.r = 6;
             enemyBullets.push(b);
@@ -763,6 +765,12 @@
       this.updateMovement(dt);
       const enraged = this.hp < this.maxHp * 0.35;
 
+      if (this.regenDelay > 0) {
+        this.regenDelay -= dt;
+      } else if (this.hp < this.maxHp) {
+        this.hp = clamp(this.hp + this.maxHp * 0.02 * dt, 0, this.maxHp);
+      }
+
       if (this.teleportEnabled) {
         this.teleportTimer -= dt;
         if (this.teleportTimer <= 0) {
@@ -793,6 +801,7 @@
       if (this.dead) return;
       this.hp -= dmg;
       this.hitFlash = 0.08;
+      this.regenDelay = 3;
       if (this.hp <= 0) {
         this.hp = 0;
         this.dead = true;
