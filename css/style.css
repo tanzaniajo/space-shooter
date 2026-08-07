@@ -275,6 +275,17 @@ button:active {
   font-size: 12px;
 }
 
+.wave-jump-controls select {
+  flex: 1;
+  padding: 6px 8px;
+  font-family: inherit;
+  font-size: 13px;
+  background: rgba(3, 3, 12, 0.6);
+  color: #e8f4ff;
+  border: 1px solid rgba(127, 255, 212, 0.4);
+  border-radius: 4px;
+}
+
 #settings-reset-button,
 #settings-close-button {
   font-size: 12px;

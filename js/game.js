@@ -40,6 +40,8 @@
   const waveJumpInput = document.getElementById('wave-jump-input');
   const waveJumpButton = document.getElementById('wave-jump-button');
   const settingsResetButton = document.getElementById('settings-reset-button');
+  const bossSummonSelect = document.getElementById('boss-summon-select');
+  const bossSummonButton = document.getElementById('boss-summon-button');
 
   const HIGH_SCORE_KEY = 'starRunnerHighScore';
 
@@ -1202,6 +1204,13 @@
     henchmen = [];
     bosses = [];
     startWave(n);
+  });
+  bossSummonButton.addEventListener('click', () => {
+    if (!player) return;
+    const kindIndex = BOSS_KINDS.findIndex((k) => k.key === bossSummonSelect.value);
+    const tier = Math.max(1, Math.round(wave / 10));
+    const startX = rand(width * 0.2, width * 0.8);
+    bosses.push(new Boss(tier, difficulty, { kindIndex, hpDivisor: 1, startX }));
   });
   settingsResetButton.addEventListener('click', () => {
     trainingSettings = { ...TRAINING_DEFAULTS };
