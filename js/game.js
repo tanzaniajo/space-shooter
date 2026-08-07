@@ -14,12 +14,28 @@
   const startScreen = document.getElementById('start-screen');
   const pauseScreen = document.getElementById('pause-screen');
   const gameOverScreen = document.getElementById('game-over-screen');
-  const diffButtons = document.querySelectorAll('.diff-btn');
+  const diffButtons = document.querySelectorAll('.diff-btn:not(.training-diff-btn):not(#training-button)');
   const resumeButton = document.getElementById('resume-button');
   const restartButton = document.getElementById('restart-button');
   const finalScoreEl = document.getElementById('final-score');
   const newHighScoreEl = document.getElementById('new-high-score');
   const highScoreDisplay = document.getElementById('high-score-display');
+
+  const trainingButton = document.getElementById('training-button');
+  const trainingScreen = document.getElementById('training-screen');
+  const trainingBackButton = document.getElementById('training-back-button');
+  const trainingDiffButtons = document.querySelectorAll('.training-diff-btn');
+  const settingsButton = document.getElementById('settings-button');
+  const settingsPanel = document.getElementById('settings-panel');
+  const settingsCloseButton = document.getElementById('settings-close-button');
+  const sliderGadget = document.getElementById('slider-gadget');
+  const sliderDash = document.getElementById('slider-dash');
+  const sliderShoot = document.getElementById('slider-shoot');
+  const sliderMove = document.getElementById('slider-move');
+  const valGadget = document.getElementById('val-gadget');
+  const valDash = document.getElementById('val-dash');
+  const valShoot = document.getElementById('val-shoot');
+  const valMove = document.getElementById('val-move');
 
   const HIGH_SCORE_KEY = 'starRunnerHighScore';
 
@@ -152,6 +168,37 @@
     impossible: { label: 'IMPOSSIBLE', gadgetCooldown: 50, enemiesAttack: true, bossAttack: true, gadgetEnabled: false, bossTeleport: true, enemyMult: 1.6 },
   };
   let difficulty = DIFFICULTIES.normal;
+
+  // ---------- Training mode ----------
+  let isTraining = false;
+  let cameFromTraining = false;
+  const TRAINING_DEFAULTS = { gadgetCooldown: 50, dashCooldown: 15, shootSpeed: 79, moveSpeed: 41 };
+  let trainingSettings = { ...TRAINING_DEFAULTS };
+
+  function shootSpeedToFireRate(v) {
+    const minRate = 0.03;
+    const maxRate = 0.6;
+    return maxRate - (v / 100) * (maxRate - minRate);
+  }
+  function moveSpeedToPixels(v) {
+    const minSpd = 100;
+    const maxSpd = 900;
+    return minSpd + (v / 100) * (maxSpd - minSpd);
+  }
+  function applyTrainingSettings() {
+    player.gadgetMax = trainingSettings.gadgetCooldown;
+    player.dashMax = trainingSettings.dashCooldown;
+    player.fireRate = shootSpeedToFireRate(trainingSettings.shootSpeed);
+    player.speed = moveSpeedToPixels(trainingSettings.moveSpeed);
+    sliderGadget.value = trainingSettings.gadgetCooldown;
+    sliderDash.value = trainingSettings.dashCooldown;
+    sliderShoot.value = trainingSettings.shootSpeed;
+    sliderMove.value = trainingSettings.moveSpeed;
+    valGadget.textContent = trainingSettings.gadgetCooldown;
+    valDash.textContent = trainingSettings.dashCooldown;
+    valShoot.textContent = trainingSettings.shootSpeed;
+    valMove.textContent = trainingSettings.moveSpeed;
+  }
 
   // ---------- Game State ----------
   let state = 'start'; // start | playing | paused | gameover
@@ -1062,15 +1109,76 @@
   diffButtons.forEach((btn) => {
     btn.addEventListener('click', () => {
       difficulty = DIFFICULTIES[btn.dataset.diff];
+      isTraining = false;
+      cameFromTraining = false;
+      settingsButton.classList.add('hidden');
       startScreen.classList.add('hidden');
       resetGame();
       state = 'playing';
     });
   });
+
+  trainingButton.addEventListener('click', () => {
+    startScreen.classList.add('hidden');
+    trainingScreen.classList.remove('hidden');
+  });
+  trainingBackButton.addEventListener('click', () => {
+    trainingScreen.classList.add('hidden');
+    startScreen.classList.remove('hidden');
+  });
+  trainingDiffButtons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      difficulty = DIFFICULTIES[btn.dataset.diff];
+      isTraining = true;
+      cameFromTraining = true;
+      trainingSettings = { ...TRAINING_DEFAULTS };
+      trainingScreen.classList.add('hidden');
+      resetGame();
+      applyTrainingSettings();
+      state = 'playing';
+      settingsButton.classList.remove('hidden');
+    });
+  });
+
+  settingsButton.addEventListener('click', () => {
+    if (state !== 'playing') return;
+    state = 'settings';
+    settingsPanel.classList.remove('hidden');
+  });
+  settingsCloseButton.addEventListener('click', () => {
+    settingsPanel.classList.add('hidden');
+    state = 'playing';
+  });
+  sliderGadget.addEventListener('input', () => {
+    trainingSettings.gadgetCooldown = Number(sliderGadget.value);
+    valGadget.textContent = trainingSettings.gadgetCooldown;
+    if (player) player.gadgetMax = trainingSettings.gadgetCooldown;
+  });
+  sliderDash.addEventListener('input', () => {
+    trainingSettings.dashCooldown = Number(sliderDash.value);
+    valDash.textContent = trainingSettings.dashCooldown;
+    if (player) player.dashMax = trainingSettings.dashCooldown;
+  });
+  sliderShoot.addEventListener('input', () => {
+    trainingSettings.shootSpeed = Number(sliderShoot.value);
+    valShoot.textContent = trainingSettings.shootSpeed;
+    if (player) player.fireRate = shootSpeedToFireRate(trainingSettings.shootSpeed);
+  });
+  sliderMove.addEventListener('input', () => {
+    trainingSettings.moveSpeed = Number(sliderMove.value);
+    valMove.textContent = trainingSettings.moveSpeed;
+    if (player) player.speed = moveSpeedToPixels(trainingSettings.moveSpeed);
+  });
+
   resumeButton.addEventListener('click', togglePause);
   restartButton.addEventListener('click', () => {
     gameOverScreen.classList.add('hidden');
-    startScreen.classList.remove('hidden');
+    settingsButton.classList.add('hidden');
+    if (cameFromTraining) {
+      trainingScreen.classList.remove('hidden');
+    } else {
+      startScreen.classList.remove('hidden');
+    }
     state = 'start';
   });
 

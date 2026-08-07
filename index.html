@@ -19,6 +19,8 @@
     <div id="hud-gadget" class="hud-badge">GADGET: READY (E)</div>
     <div id="hud-dash" class="hud-badge">DASH: READY (SHIFT)</div>
 
+    <button id="settings-button" class="hidden">⚙ SETTINGS</button>
+
     <div id="start-screen" class="overlay">
       <h1>STAR RUNNER</h1>
       <p class="subtitle">A tiny space shooter</p>
@@ -31,13 +33,48 @@
       </div>
       <p id="high-score-display">High Score: 0</p>
       <p class="subtitle">Select Difficulty</p>
-      <div id="difficulty-row">
+      <div class="difficulty-row">
         <button class="diff-btn diff-peaceful" data-diff="peaceful" title="No gadget cooldown. Only bosses shoot.">PEACEFUL</button>
         <button class="diff-btn diff-easy" data-diff="easy" title="30s gadget cooldown. Only bosses shoot.">EASY</button>
         <button class="diff-btn diff-normal" data-diff="normal" title="Standard rules. 50s gadget cooldown.">NORMAL</button>
         <button class="diff-btn diff-hard" data-diff="hard" title="90s gadget cooldown. Tougher enemies.">HARD</button>
         <button class="diff-btn diff-impossible" data-diff="impossible" title="No gadget. Toughest enemies. Boss can teleport.">IMPOSSIBLE</button>
+        <button id="training-button" class="diff-btn diff-training" title="Pick a base difficulty, then customize cooldowns and speeds live.">TRAINING</button>
       </div>
+    </div>
+
+    <div id="training-screen" class="overlay hidden">
+      <h1>TRAINING MODE</h1>
+      <p class="subtitle">Pick a base difficulty — you'll get a settings panel to tweak cooldowns and speeds live</p>
+      <div class="difficulty-row">
+        <button class="diff-btn training-diff-btn diff-peaceful" data-diff="peaceful">PEACEFUL</button>
+        <button class="diff-btn training-diff-btn diff-easy" data-diff="easy">EASY</button>
+        <button class="diff-btn training-diff-btn diff-normal" data-diff="normal">NORMAL</button>
+        <button class="diff-btn training-diff-btn diff-hard" data-diff="hard">HARD</button>
+        <button class="diff-btn training-diff-btn diff-impossible" data-diff="impossible">IMPOSSIBLE</button>
+      </div>
+      <button id="training-back-button" style="margin-top: 10px;">BACK</button>
+    </div>
+
+    <div id="settings-panel" class="overlay hidden">
+      <h1>TRAINING SETTINGS</h1>
+      <div class="settings-row">
+        <label>Gadget Cooldown: <span id="val-gadget">50</span>s</label>
+        <input type="range" id="slider-gadget" min="0" max="100" step="1" value="50" />
+      </div>
+      <div class="settings-row">
+        <label>Dash Cooldown: <span id="val-dash">15</span>s</label>
+        <input type="range" id="slider-dash" min="0" max="100" step="1" value="15" />
+      </div>
+      <div class="settings-row">
+        <label>Shooting Speed: <span id="val-shoot">80</span></label>
+        <input type="range" id="slider-shoot" min="0" max="100" step="1" value="80" />
+      </div>
+      <div class="settings-row">
+        <label>Movement Speed: <span id="val-move">41</span></label>
+        <input type="range" id="slider-move" min="0" max="100" step="1" value="41" />
+      </div>
+      <button id="settings-close-button" style="margin-top: 10px;">CLOSE</button>
     </div>
 
     <div id="pause-screen" class="overlay hidden">
